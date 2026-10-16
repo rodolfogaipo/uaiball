@@ -1,0 +1,14 @@
+{
+  "rules": {
+    "uaiball": {
+      "scores": {
+        ".read": true,
+        ".indexOn": ["score"],
+        "$id": {
+          ".write": "!data.exists()",
+          ".validate": "newData.hasChildren(['name','score','diff','date']) && newData.child('name').isString() && newData.child('name').val().length <= 12 && newData.child('score').isNumber() && newData.child('score').val() >= 0 && newData.child('score').val() < 100000000"
+        }
+      }
+    }
+  }
+}

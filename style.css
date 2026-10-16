@@ -1,0 +1,162 @@
+/* ============================================================
+   UAI BALL – estilos da página
+   - Celular: jogo ocupa a tela toda em modo retrato
+   - Desktop (paisagem): mesa no centro + painéis laterais
+   ============================================================ */
+
+:root {
+  --madeira-escura: #1a0f08;
+  --madeira: #3b1f0c;
+  --latao: #d9a441;
+  --creme: #ffe7b8;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse at center, #3a1f0d 0%, #1a0f08 60%, #0b0603 100%);
+  color: var(--creme);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+}
+
+body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 32px;
+}
+
+/* Área do canvas – o Phaser (Scale.FIT) centraliza dentro dela */
+#game {
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+}
+#game canvas { display: block; }
+
+/* ---------- Painéis laterais (desktop paisagem) ---------- */
+.side {
+  display: none;
+  width: 250px;
+  padding: 22px 20px;
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, rgba(90, 46, 18, .92), rgba(43, 22, 8, .92));
+  border: 3px solid var(--latao);
+  box-shadow: 0 0 30px rgba(255, 160, 60, .25), inset 0 0 18px rgba(0, 0, 0, .6);
+  font-size: 15px;
+  line-height: 1.5;
+}
+.side h2 {
+  font-family: "Rye", serif;
+  font-weight: normal;
+  color: #ffd27a;
+  margin: 0 0 8px;
+  font-size: 22px;
+  text-shadow: 0 0 10px rgba(255, 150, 40, .6);
+}
+.side ul { margin: 0 0 18px; padding-left: 18px; }
+kbd {
+  display: inline-block;
+  min-width: 22px;
+  padding: 1px 6px;
+  border-radius: 5px;
+  background: #f3dfb4;
+  color: #3b1f0c;
+  font-weight: 700;
+  text-align: center;
+  box-shadow: 0 2px 0 #8a6a33;
+}
+
+@media (min-aspect-ratio: 5/4) and (min-width: 1000px) {
+  #game {
+    /* a mesa é 896x1200 (proporção 0,7467) */
+    width: calc(100vh * 0.7467);
+    width: calc(100dvh * 0.7467);
+    flex: 0 0 auto;
+  }
+  .side { display: block; }
+}
+
+/* ---------- Janela do nome (ranking) ---------- */
+.modal {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, .65);
+  z-index: 20;
+}
+.modal.hidden { display: none; }
+.modal-box {
+  width: min(88vw, 380px);
+  padding: 24px;
+  border-radius: 18px;
+  text-align: center;
+  background: linear-gradient(180deg, #5a2e12, #2b1608);
+  border: 3px solid var(--latao);
+  box-shadow: 0 0 40px rgba(255, 160, 60, .45);
+}
+.modal-box h3 {
+  font-family: "Rye", serif;
+  font-weight: normal;
+  font-size: 24px;
+  margin: 0 0 6px;
+  color: #ffd27a;
+}
+.modal-box p { margin: 0 0 14px; font-family: "Bungee", sans-serif; font-size: 22px; }
+.modal-box input {
+  width: 100%;
+  padding: 12px;
+  font-size: 20px;
+  border-radius: 10px;
+  border: 2px solid var(--latao);
+  background: #f6e7c6;
+  color: #2b1608;
+  text-align: center;
+  text-transform: uppercase;
+  user-select: text;
+  -webkit-user-select: text;
+}
+.modal-actions { display: flex; gap: 10px; margin-top: 16px; }
+.btn {
+  flex: 1;
+  padding: 12px;
+  font-family: "Rye", serif;
+  font-size: 18px;
+  border-radius: 10px;
+  border: 2px solid var(--latao);
+  background: #b8651c;
+  color: var(--creme);
+  cursor: pointer;
+}
+.btn.ghost { background: transparent; }
+
+/* ---------- Aviso de girar o celular ---------- */
+#rotate {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  background: var(--madeira-escura);
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-family: "Rye", serif;
+  font-size: 26px;
+  color: #ffd27a;
+}
+#rotate div { font-size: 22px; line-height: 1.6; }
+@media (orientation: landscape) and (max-height: 520px) and (pointer: coarse) {
+  #rotate { display: flex; }
+}

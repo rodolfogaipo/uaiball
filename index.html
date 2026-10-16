@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <title>Uai Ball – Pinball Mineiro</title>
+  <meta name="description" content="Uai Ball – pinball rústico mineiro de madeira pirogravada." />
+  <meta name="theme-color" content="#1a0f08" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
+  <!-- Favicon / ícone = logo -->
+  <link rel="icon" type="image/png" href="assets/logo.png" />
+  <link rel="apple-touch-icon" href="assets/logo.png" />
+  <link rel="manifest" href="manifest.json" />
+
+  <!-- Fontes: Rye (rústica/faroeste) e Bungee (placar) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bungee&family=Rye&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- Painel lateral (aparece só no desktop em paisagem) -->
+  <aside class="side side-left">
+    <h2>Controles</h2>
+    <ul>
+      <li><kbd>←</kbd> ou <kbd>A</kbd> palheta esquerda</li>
+      <li><kbd>→</kbd> ou <kbd>D</kbd> palheta direita</li>
+      <li>Segure <kbd>↓</kbd> ou <kbd>Espaço</kbd> e solte para lançar</li>
+      <li><kbd>P</kbd> / <kbd>Esc</kbd> pausa</li>
+    </ul>
+    <h2>Ajuste da mesa</h2>
+    <ul>
+      <li><kbd>G</kbd> mostra as colisões (vermelho)</li>
+      <li><kbd>E</kbd> abre o editor de pontos</li>
+    </ul>
+  </aside>
+
+  <div id="game"></div>
+
+  <aside class="side side-right">
+    <h2>Pontuação</h2>
+    <ul>
+      <li>Bumper: <b>100</b></li>
+      <li>Rampa completa: <b>500</b></li>
+      <li>Estilingue: <b>10</b></li>
+      <li>Triângulos (cada): <b>50</b></li>
+      <li>Trio aceso: <b>1.000</b></li>
+      <li>A cada <b>5.000</b> o multiplicador sobe</li>
+    </ul>
+  </aside>
+
+  <!-- Janela para digitar o nome no ranking -->
+  <div id="nameModal" class="modal hidden" role="dialog" aria-modal="true">
+    <div class="modal-box">
+      <h3>Você entrou no Top 10!</h3>
+      <p id="nameScore"></p>
+      <input id="nameInput" type="text" maxlength="12" placeholder="Seu nome" autocomplete="off" />
+      <div class="modal-actions">
+        <button id="nameSkip" class="btn ghost">Pular</button>
+        <button id="nameOk" class="btn">Salvar</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="rotate"><div>↻<br />Gire o celular na vertical, sô!</div></div>
+
+  <!-- Phaser 3 (já inclui o Matter.js) -->
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
+
+  <!-- Configuração e utilitários -->
+  <script src="js/config.js"></script>
+  <script src="js/services.js"></script>
+  <script src="js/lights.js"></script>
+
+  <!-- Cenas -->
+  <script src="scenes/BootScene.js"></script>
+  <script src="scenes/MenuScene.js"></script>
+  <script src="scenes/GameScene.js"></script>
+  <script src="scenes/GameOverScene.js"></script>
+  <script src="scenes/RankingScene.js"></script>
+
+  <!-- Inicialização -->
+  <script src="main.js"></script>
+</body>
+</html>
