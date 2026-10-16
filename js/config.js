@@ -56,11 +56,13 @@ UAI.PHYSICS = {
   },
   bumper: {
     restitution: 1.05,
-    spriteRatio: 0.72   // raio físico / raio do desenho (o anel de latão fica de fora da colisão)
+    spriteRatio: 0.72,  // usado só se o bumper não tiver "vr" (raio físico / raio do desenho)
+    perspective: 0.86   // achatamento vertical do desenho, igual à perspectiva da arte da mesa
   },
   sling: {
     restitution: 0.6,
-    kick: 12            // velocidade do chute do estilingue
+    kick: 10,           // velocidade do chute do estilingue
+    downTilt: 14        // graus que o chute inclina para baixo (evita pingue-pongue infinito)
   },
   flipper: {
     length: 160,        // comprimento da palheta (px) – multiplicado pela escala da dificuldade
@@ -107,7 +109,7 @@ UAI.DIFFICULTIES = {
    Depois cole aqui no lugar deste objeto (e aumente "version").
    ============================================================ */
 UAI.DEFAULT_TABLE = {
-  version: 5,
+  version: 6,
 
   // Paredes = linhas poligonais [x, y]
   walls: [
@@ -117,7 +119,7 @@ UAI.DEFAULT_TABLE = {
     { id: 'rampaInterna', pts: [[422, 452], [378, 396], [372, 322], [390, 264], [440, 218], [520, 186], [600, 172], [680, 182], [735, 222], [756, 290], [752, 365], [704, 400]] },
     // guia curva do lado direito (leva até a palheta direita)
     { id: 'guiaDireita', pts: [[612, 1036], [700, 998], [740, 962], [742, 742], [728, 700], [680, 668], [640, 658]] },
-    { id: 'tampaDireita', pts: [[728, 700], [792, 700]] }
+    { id: 'tampaDireita', pts: [[792, 575], [740, 640], [680, 668]] }  // inclinada: a bola não fica parada em cima
   ],
 
   // Blocos sólidos (polígonos sem chute) – triângulo de madeira ao lado do portão da rampa
@@ -125,14 +127,16 @@ UAI.DEFAULT_TABLE = {
     { pts: [[745, 432], [752, 522], [676, 508]] }
   ],
 
-  // Bumpers (engrenagens): centro e raio físico. sensor: true = roda que gira sem rebater
+  // Bumpers (engrenagens) sobre as marcações redondas da madeira.
+  // r = raio físico (colisão) · vr = raio do desenho (anel de latão) · sensor: true = roda que gira sem rebater
   bumpers: [
-    { x: 482, y: 322, r: 30 },  // estrela
-    { x: 642, y: 300, r: 34 },  // círculo dentro da ferradura
-    { x: 705, y: 595, r: 28 },  // círculo da direita
-    { x: 315, y: 545, r: 16 },  // moeda estrela da esquerda
-    { x: 560, y: 568, r: 18 },  // sol
-    { x: 445, y: 792, r: 62, sensor: true }   // roda central: a bola passa por cima, ela gira e pontua
+    { x: 480, y: 320, r: 35, vr: 48 },  // placa da estrela
+    { x: 637, y: 297, r: 42, vr: 62 },  // círculo dentro da ferradura
+    { x: 705, y: 608, r: 42, vr: 62 },  // círculo grande da direita
+    { x: 317, y: 545, r: 16, vr: 22 },  // moeda com estrela (esquerda)
+    { x: 575, y: 557, r: 17, vr: 24 },  // sol de cima
+    { x: 546, y: 583, r: 14, vr: 20 },  // sol de baixo
+    { x: 444, y: 805, r: 60, vr: 92, sensor: true }  // roda central: a bola passa por cima, ela gira e pontua
   ],
 
   // Estilingues triangulares. kick = índices dos 2 vértices da face que chuta a bola

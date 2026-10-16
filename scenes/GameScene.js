@@ -116,14 +116,19 @@ class GameScene extends Phaser.Scene {
         friction: 0, label: 'bumper'
       });
       this.addBody(body, { type: 'bumper', i });
-      const disp = (2 * b.r) / P.bumper.spriteRatio;
+      // tamanho do desenho: vr = raio visual (anel de latão sobre a marcação da madeira)
+      const disp = 2 * (b.vr || b.r / P.bumper.spriteRatio);
+      const persp = P.bumper.perspective;      // a arte da mesa está em perspectiva: círculos levemente achatados
       const halo = this.add.image(b.x, b.y, 'glow').setBlendMode(Phaser.BlendModes.ADD)
-        .setTint(0xff9a30).setDisplaySize(disp * 1.7, disp * 1.7).setDepth(4).setAlpha(0.25);
-      const spr = this.add.image(b.x, b.y, 'bumper').setDisplaySize(disp, disp).setDepth(5);
+        .setTint(0xff9a30).setDisplaySize(disp * 1.6, disp * 1.6 * persp).setDepth(4).setAlpha(0.25);
+      // container achatado + imagem girando dentro dele = engrenagem girando "deitada" na mesa
+      const holder = this.add.container(b.x, b.y).setDepth(5).setScale(1, persp);
+      const spr = this.add.image(0, 0, 'bumper').setDisplaySize(disp, disp);
+      holder.add(spr);
       const cap = this.add.image(b.x, b.y, 'glow').setBlendMode(Phaser.BlendModes.ADD)
-        .setTint(0xfff0c8).setDisplaySize(disp * 0.9, disp * 0.9).setDepth(6).setAlpha(0);
-      this.tableObjs.push(halo, spr, cap);
-      return { ...b, body, spr, halo, cap, flash: 0, last: 0, phase: i * 1.7, baseScale: spr.scaleX, spin: (i % 2 ? -1 : 1) };
+        .setTint(0xfff0c8).setDisplaySize(disp * 0.9, disp * 0.9 * persp).setDepth(6).setAlpha(0);
+      this.tableObjs.push(halo, holder, cap);
+      return { ...b, body, spr, holder, persp, halo, cap, flash: 0, last: 0, phase: i * 1.7, spin: (i % 2 ? -1 : 1) };
     });
 
     // --- Estilingues (triângulos que chutam) ---
@@ -623,7 +628,8 @@ class GameScene extends Phaser.Scene {
       if (!other) continue;
       const u = other.uai || {};
       switch (u.type) {
-        case 'bumper': this.hitBumper(this.bumpers[u.i], u.i); break;
+        case 'bumper': this.slingChain = 0; this.hitBumper(this.bumpers[u.i], u.i); break;
+        case 'flipper': this.slingChain = 0; break;
         case 'sling': this.hitSling(this.slings[u.i]); break;
         case 'ramp': this.onRampSensor(u.which); break;
         case 'rollover': this.onRollover(u.i); break;
@@ -655,7 +661,7 @@ class GameScene extends Phaser.Scene {
     const kick = this.diff.bumperKick;
     this.pendingKick = { x: (dx / d) * kick, y: (dy / d) * kick };
     B.flash = 1;
-    this.tweens.add({ targets: B.spr, scaleX: B.baseScale * 1.12, scaleY: B.baseScale * 1.12, duration: 60, yoyo: true });
+    this.tweens.add({ targets: B.holder, scaleX: 1.12, scaleY: B.persp * 1.12, duration: 60, yoyo: true });
     UAI.Sfx.bumper(i);
     this.addScore(UAI.CONFIG.POINTS.bumper, B.x, B.y - B.r - 14);
     this.lights.flashAll(this.rim, 0.25);
@@ -670,10 +676,17 @@ class GameScene extends Phaser.Scene {
     const along = rx * S.t.x + ry * S.t.y;       // posição ao longo da face
     if (dist < -4 || along < -8 || along > S.len + 8) return;   // bateu em outro lado do triângulo
     S.last = now;
+    // Anti pingue-pongue: estilingue seguido de estilingue sem tocar em mais nada
+    // perde força (antes a bola ficava presa quicando de um lado pro outro).
+    this.slingChain = (now - (this.lastSlingAt || 0) < 1800) ? (this.slingChain || 0) + 1 : 1;
+    this.lastSlingAt = now;
+    const SP = UAI.PHYSICS.sling;
+    const k = this.slingChain >= 3 ? SP.kick * 0.3 : SP.kick;
+    // chute na normal da face, inclinado um pouco para baixo (em direção às palhetas)
+    const ang = Math.atan2(S.n.y, S.n.x) + Phaser.Math.DegToRad(SP.downTilt) * (S.n.x >= 0 ? 1 : -1);
     const v = this.Body.getVelocity(this.ball);
-    const tang = (v.x * S.t.x + v.y * S.t.y) * 0.4;
-    const k = UAI.PHYSICS.sling.kick;
-    this.pendingKick = { x: S.n.x * k + S.t.x * tang, y: S.n.y * k + S.t.y * tang };
+    const tang = (v.x * S.t.x + v.y * S.t.y) * 0.3;
+    this.pendingKick = { x: Math.cos(ang) * k + S.t.x * tang, y: Math.sin(ang) * k + S.t.y * tang };
     this.lights.flashAll(S.lamps, 1);
     UAI.Sfx.sling();
     this.addScore(UAI.CONFIG.POINTS.sling, p.x, p.y - 30);
@@ -986,7 +999,10 @@ class GameScene extends Phaser.Scene {
       case 'Equal': case 'NumpadAdd': case 'Minus': case 'NumpadSubtract':
         if (m && m.kind === 'bumper') {
           const b = L.bumpers[m.i];
-          b.r = Phaser.Math.Clamp(b.r + (ev.code === 'Equal' || ev.code === 'NumpadAdd' ? 2 : -2), 8, 120);
+          const d = ev.code === 'Equal' || ev.code === 'NumpadAdd' ? 2 : -2;
+          const ratio = b.vr ? b.vr / b.r : 0;
+          b.r = Phaser.Math.Clamp(b.r + d, 8, 120);
+          if (ratio) b.vr = Math.round(b.r * ratio);
           this.rebuild();
         }
         break;
