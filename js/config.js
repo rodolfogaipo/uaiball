@@ -30,6 +30,10 @@ UAI.CONFIG = {
     sling: 10,         // estilingues triangulares
     rollover: 50,      // cada triângulo aceso
     rolloverSet: 1000, // acender os 3 triângulos
+    saucer: 750,       // bola cai num buraco (estrela/caveira)
+    saucerSet: 3000,   // os 3 buracos acesos = MINA DE OURO
+    blackhole: 1500,   // buraco negro do planeta
+    spring: 250,       // disparo da mola
     multStep: 5000     // a cada 5.000 pontos o multiplicador sobe
   }
 };
@@ -73,11 +77,14 @@ UAI.PHYSICS = {
     downSpeed: 0.26,    // velocidade de retorno (rebote rápido)
     restitution: 0.45
   },
+  holes: {
+    holdTime: 1100      // ms que a bola fica presa no buraco antes de ser cuspida
+  },
   rampBoost: 24,        // velocidade mínima dada pelo acelerador do portão da rampa
   rampBoostDir: [0.04, -1],   // direção do empurrão (para cima, subindo o canal da direita)
   plunger: {
-    min: 13,            // velocidade mínima do lançamento
-    max: 33,            // velocidade máxima (mola toda puxada)
+    min: 29,            // velocidade mínima: mesmo um toque leve leva a bola até o topo da mesa
+    max: 36,            // velocidade máxima (mola toda puxada)
     chargeTime: 1000,   // ms segurando a tecla para carregar 100%
     dragDistance: 240   // px arrastando o dedo para cima para carregar 100%
   }
@@ -109,7 +116,7 @@ UAI.DIFFICULTIES = {
    Depois cole aqui no lugar deste objeto (e aumente "version").
    ============================================================ */
 UAI.DEFAULT_TABLE = {
-  version: 6,
+  version: 7,
 
   // Paredes = linhas poligonais [x, y]
   walls: [
@@ -136,7 +143,8 @@ UAI.DEFAULT_TABLE = {
     { x: 317, y: 545, r: 16, vr: 22 },  // moeda com estrela (esquerda)
     { x: 575, y: 557, r: 17, vr: 24 },  // sol de cima
     { x: 546, y: 583, r: 14, vr: 20 },  // sol de baixo
-    { x: 444, y: 805, r: 60, vr: 92, sensor: true }  // roda central: a bola passa por cima, ela gira e pontua
+    { x: 444, y: 805, r: 60, vr: 92, sensor: true }, // roda central: a bola passa por cima, ela gira e pontua
+    { x: 444, y: 805, r: 22, hidden: true, shock: true } // cubo da roda: dá CHOQUE e arremessa a bola
   ],
 
   // Estilingues triangulares. kick = índices dos 2 vértices da face que chuta a bola
@@ -153,6 +161,18 @@ UAI.DEFAULT_TABLE = {
 
   // Triângulos de rolagem (sensores com luz)
   rollovers: [[250, 560], [322, 588], [326, 628]],
+
+  // Buracos: saucer = prende e cospe de volta · blackhole = suga e manda pelo túnel até a mola
+  // eject = [direção em graus (0 = direita, 90 = para baixo), velocidade]
+  holes: [
+    { id: 'estrela', type: 'saucer', x: 473, y: 422, r: 12, eject: [105, 9] },
+    { id: 'caveira', type: 'saucer', x: 518, y: 422, r: 12, eject: [90, 9] },
+    { id: 'caveira2', type: 'saucer', x: 557, y: 405, r: 12, eject: [75, 9] },
+    { id: 'planeta', type: 'blackhole', x: 523, y: 487, r: 15 }
+  ],
+
+  // Mola desenhada no canto esquerdo: saída do túnel e "chutador" se a bola encostar no pé dela
+  spring: { x: 240, y: 524, r: 16, eject: [52, 18] },
 
   // Onde a bola nasce (no corredor de lançamento)
   ballStart: [815, 1088],

@@ -43,4 +43,5 @@ Sem a URL, o jogo usa um ranking local do aparelho (funciona offline).
 
 ## Regras
 3 bolas · Bumper 100 · Rampa completa 500 · Estilingue 10 · Triângulos 50 (os 3 = 1.000) · multiplicador sobe a cada 5.000 pontos (até x8, mostrado no quadro de luzes).
+Buracos: estrela e caveiras prendem a bola e cospem de volta (750; os 3 = Mina de Ouro 3.000). O planeta é um **buraco negro**: suga a bola, ela viaja por um túnel e sai disparada pela **mola** (1.500 + 250). O cubo da roda central dá **choque** e arremessa a bola.
 A rampa é a ferradura do topo: entre por baixo do braço esquerdo ou pelo acelerador do lado direito e dê a volta completa.

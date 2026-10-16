@@ -1,7 +1,7 @@
 /* Uai Ball – Service Worker
    Rede primeiro (pega atualizações do GitHub Pages), cache se estiver offline.
    Troque CACHE ao publicar mudanças grandes. */
-const CACHE = 'uaiball-v1';
+const CACHE = 'uaiball-v2';
 const SHELL = [
   './', './index.html', './style.css', './main.js', './manifest.json',
   './js/config.js', './js/services.js', './js/lights.js',

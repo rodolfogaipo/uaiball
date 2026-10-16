@@ -67,6 +67,8 @@ class GameScene extends Phaser.Scene {
     this.tableBodies = [];
     this.tableObjs = [];
     this.flippers = [];
+    this.editorBound = false;
+    this.holeBusy = false;
     this.buildTable();
     this.createBall();
     this.createHUD();
@@ -75,8 +77,8 @@ class GameScene extends Phaser.Scene {
     this.debugGfx = this.add.graphics().setDepth(60);
     this.matter.world.on('collisionstart', this.onCollision, this);
     this.events.once('shutdown', () => {
-      this.matter.world.off('collisionstart', this.onCollision, this);
-      this.input.keyboard.removeAllListeners();
+      // o Phaser destrói o mundo da física antes deste evento: só desliga se ainda existir
+      if (this.matter && this.matter.world) this.matter.world.off('collisionstart', this.onCollision, this);
     });
 
     this.resetBall();
@@ -123,8 +125,9 @@ class GameScene extends Phaser.Scene {
         .setTint(0xff9a30).setDisplaySize(disp * 1.6, disp * 1.6 * persp).setDepth(4).setAlpha(0.25);
       // container achatado + imagem girando dentro dele = engrenagem girando "deitada" na mesa
       const holder = this.add.container(b.x, b.y).setDepth(5).setScale(1, persp);
-      const spr = this.add.image(0, 0, 'bumper').setDisplaySize(disp, disp);
-      holder.add(spr);
+      const spr = b.hidden ? null : this.add.image(0, 0, 'bumper').setDisplaySize(disp, disp);
+      if (spr) holder.add(spr);
+      if (b.hidden) halo.setVisible(false);
       const cap = this.add.image(b.x, b.y, 'glow').setBlendMode(Phaser.BlendModes.ADD)
         .setTint(0xfff0c8).setDisplaySize(disp * 0.9, disp * 0.9 * persp).setDepth(6).setAlpha(0);
       this.tableObjs.push(halo, holder, cap);
@@ -163,7 +166,179 @@ class GameScene extends Phaser.Scene {
     // --- Palhetas ---
     this.flippers = [this.makeFlipper('L', L.flippers.left), this.makeFlipper('R', L.flippers.right)];
 
+    this.buildHoles();
     this.buildLights();
+  }
+
+  /* ---------------- BURACOS (saucers), BURACO NEGRO e MOLA ----------------
+     • saucer: a bola cai no buraco, fica presa, pontua e é cuspida de volta
+     • buraco negro: a bola é sugada, viaja por um TÚNEL por baixo da mesa
+       e sai disparada pela MOLA (o mecanismo de mola desenhado na madeira)
+     • mola: se a bola encostar no pé da mola, ela também dispara */
+  buildHoles() {
+    const L = this.layout;
+    this.holes = (L.holes || []).map((h, i) => {
+      const body = this.Bodies.circle(h.x, h.y, h.r || 13, { isStatic: true, isSensor: true, label: 'hole' });
+      this.addBody(body, { type: 'hole', i });
+      const black = h.type === 'blackhole';
+      const size = black ? 80 : 40;
+      // fundo escuro do buraco
+      const pit = this.add.image(h.x, h.y, 'pit').setDisplaySize(size, size * 0.9).setDepth(2.5).setAlpha(black ? 0.95 : 0.85);
+      // espiral girando (só no buraco negro)
+      const swirl = black ? this.add.image(h.x, h.y, 'swirl').setBlendMode(Phaser.BlendModes.ADD)
+        .setTint(0xb070ff).setDisplaySize(size * 1.5, size * 1.35).setDepth(2.6).setAlpha(0.6) : null;
+      if (swirl) this.tableObjs.push(swirl);
+      this.tableObjs.push(pit);
+      const lamp = this.lights.add(h.x, h.y, { r: black ? 70 : 36, color: black ? 0xa060ff : 0xffb040, base: black ? 0.2 : 0.1, onLevel: 0.7 });
+      return { ...h, body, pit, swirl, lamp, lit: false, cooldown: 0 };
+    });
+    this.holeSet = this.holes.filter(H => H.type === 'saucer');
+
+    const S = L.spring;
+    this.spring = null;
+    if (S) {
+      const body = this.Bodies.circle(S.x, S.y, S.r || 16, { isStatic: true, isSensor: true, label: 'spring' });
+      this.addBody(body, { type: 'spring' });
+      const lamp = this.lights.add(S.x, S.y - 12, { r: 60, color: 0xffd27a, base: 0.08, decay: 500 });
+      this.spring = { ...S, body, lamp, cooldown: 0 };
+    }
+  }
+
+  holeAt(id) { return this.holes.find(H => H.id === id); }
+
+  /** A bola entrou num buraco */
+  captureHole(H) {
+    const now = this.time.now;
+    if (!H || this.ballState !== 'play' || now < H.cooldown || this.holeBusy) return;
+    this.holeBusy = true;
+    this.ballState = 'hole';
+    this.pendingKick = null;
+    const B = this.Body;
+    B.setStatic(this.ball, true);
+    B.setPosition(this.ball, { x: H.x, y: H.y });
+    const black = H.type === 'blackhole';
+    const P = UAI.CONFIG.POINTS;
+    // animação: a bola afunda girando
+    this.tweens.add({ targets: this.ballSpr, scale: this.ballSpr.scale * (black ? 0.15 : 0.55), alpha: black ? 0 : 0.6,
+      angle: black ? 720 : 180, duration: black ? 700 : 260, ease: 'Cubic.in' });
+    this.lights.flash(H.lamp, 1.2);
+    this.party = black ? 1400 : 500;
+    if (black) {
+      UAI.Sfx.blackhole();
+      this.cameras.main.shake(500, 0.004);
+      this.addScore(P.blackhole, H.x, H.y - 40);
+      this.banner('BURACO NEGRO!', 'Lá vai ela pelo túnel...', '#d8b0ff');
+      this.time.delayedCall(1100, () => this.tunnel(H));
+    } else {
+      UAI.Sfx.saucer();
+      this.addScore(P.saucer, H.x, H.y - 30);
+      if (!H.lit) {
+        H.lit = true;
+        if (this.holeSet.length && this.holeSet.every(h => h.lit)) {
+          this.addScore(P.saucerSet, H.x, H.y - 70);
+          this.banner('MINA DE OURO!', 'Os 3 buracos acesos', '#ffe066');
+          UAI.Sfx.bonus();
+          this.party = 2000;
+          this.time.delayedCall(1500, () => this.holeSet.forEach(h => (h.lit = false)));
+        }
+      }
+      this.time.delayedCall(UAI.PHYSICS.holes.holdTime, () => this.ejectFrom(H.x, H.y, H.eject, H));
+    }
+  }
+
+  /** Solta a bola de um ponto, com direção [graus, velocidade] (0° = direita, 90° = para baixo) */
+  ejectFrom(x, y, eject, H) {
+    if (this.ballState !== 'hole') return;
+    const B = this.Body;
+    const [deg, speed] = eject || [90, 9];
+    const a = Phaser.Math.DegToRad(deg + Phaser.Math.Between(-12, 12));
+    B.setStatic(this.ball, false);
+    B.setPosition(this.ball, { x: x + Math.cos(a) * 6, y: y + Math.sin(a) * 6 });
+    B.setVelocity(this.ball, { x: Math.cos(a) * speed, y: Math.sin(a) * speed });
+    this.tweens.killTweensOf(this.ballSpr);
+    this.ballSpr.setAlpha(1).setAngle(0);
+    const R = UAI.PHYSICS.ball.radius;
+    this.ballSpr.setDisplaySize(R * 2 + 2, R * 2 + 2);
+    const s0 = this.ballSpr.scale;
+    this.ballSpr.setScale(s0 * 1.5);
+    this.tweens.add({ targets: this.ballSpr, scale: s0, duration: 200, ease: 'Back.out' });
+    if (H) H.cooldown = this.time.now + 1500;
+    this.trailPts = [];
+    this.ballState = 'play';
+    this.holeBusy = false;
+    UAI.Sfx.eject();
+  }
+
+  /** Túnel subterrâneo: uma luz corre por baixo da mesa até a mola */
+  tunnel(H) {
+    const S = this.spring;
+    if (!S) { this.ejectFrom(H.x, H.y, [90, 10], H); return; }
+    const spark = this.add.image(H.x, H.y, 'glow').setBlendMode(Phaser.BlendModes.ADD)
+      .setTint(0xc090ff).setDisplaySize(70, 70).setDepth(9);
+    const core = this.add.image(H.x, H.y, 'glow').setBlendMode(Phaser.BlendModes.ADD)
+      .setTint(0xffffff).setDisplaySize(26, 26).setDepth(9);
+    UAI.Sfx.tunnel();
+    // curva passando por baixo da mesa (ponto de controle no meio)
+    const cx = (H.x + S.x) / 2 - 40, cy = Math.max(H.y, S.y) + 120;
+    const curve = new Phaser.Curves.QuadraticBezier(new Phaser.Math.Vector2(H.x, H.y), new Phaser.Math.Vector2(cx, cy), new Phaser.Math.Vector2(S.x, S.y));
+    const tmp = new Phaser.Math.Vector2();
+    // a animação é só visual; quem manda a bola sair é o relógio do jogo
+    this.tweens.addCounter({
+      from: 0, to: 1, duration: 900, ease: 'Sine.inOut',
+      onUpdate: tw => {
+        curve.getPoint(tw.getValue(), tmp);
+        spark.setPosition(tmp.x, tmp.y); core.setPosition(tmp.x, tmp.y);
+        // as luzes do caminho acendem conforme a bola passa
+        this.lights.list.forEach(L => { if (Math.hypot(L.x - tmp.x, L.y - tmp.y) < 90) this.lights.flash(L, 0.7); });
+      }
+    });
+    this.time.delayedCall(900, () => {
+      spark.destroy(); core.destroy();
+      if (this.ballState === 'hole') this.fireSpring(true);
+    });
+  }
+
+  /** A mola dispara a bola (vindo do túnel ou porque a bola encostou nela) */
+  fireSpring(fromTunnel) {
+    const S = this.spring, now = this.time.now;
+    if (!S) return;
+    if (!fromTunnel) {
+      if (this.ballState !== 'play' || now < S.cooldown || this.holeBusy) return;
+      this.holeBusy = true;
+      this.ballState = 'hole';
+      this.Body.setStatic(this.ball, true);
+      this.Body.setPosition(this.ball, { x: S.x, y: S.y });
+    }
+    S.cooldown = now + 1500;
+    // a mola "carrega" e solta
+    this.lights.flash(S.lamp, 1.3);
+    this.time.delayedCall(fromTunnel ? 150 : 350, () => {
+      this.ejectFrom(S.x, S.y, S.eject, null);
+      S.cooldown = this.time.now + 1500;
+      this.addScore(UAI.CONFIG.POINTS.spring, S.x + 30, S.y - 30);
+      this.banner('MOLA!', '', '#ffd27a');
+      UAI.Sfx.launch(1);
+      this.cameras.main.shake(160, 0.006);
+      this.lights.flashAll(this.rim, 0.6);
+    });
+  }
+
+  /** Choque elétrico do cubo da roda central */
+  shock(B) {
+    UAI.Sfx.shock();
+    this.cameras.main.shake(120, 0.005);
+    (this.sparks || []).forEach(L => this.lights.flash(L, 1.2));
+    const wheel = this.bumpers.find(o => o.sensor);
+    if (wheel) { wheel.flash = 1; wheel.spinBoost = 0.03; }
+    for (let k = 0; k < 6; k++) {
+      const a = Math.random() * Math.PI * 2, r1 = 18, r2 = 46 + Math.random() * 30;
+      const g = this.add.graphics().setDepth(9).setBlendMode(Phaser.BlendModes.ADD);
+      g.lineStyle(3, 0x9fe8ff, 1);
+      g.beginPath(); g.moveTo(B.x + Math.cos(a) * r1, B.y + Math.sin(a) * r1);
+      const mx = B.x + Math.cos(a + 0.3) * (r1 + r2) / 2, my = B.y + Math.sin(a + 0.3) * (r1 + r2) / 2;
+      g.lineTo(mx, my); g.lineTo(B.x + Math.cos(a) * r2, B.y + Math.sin(a) * r2); g.strokePath();
+      this.tweens.add({ targets: g, alpha: 0, duration: 260, onComplete: () => g.destroy() });
+    }
   }
 
   addBody(body, data) {
@@ -328,6 +503,14 @@ class GameScene extends Phaser.Scene {
   resetBall() {
     const [x, y] = this.layout.ballStart;
     const Body = this.Body;
+    // limpa qualquer bola que estava presa num buraco
+    this.holeBusy = false;
+    this.pendingKick = null;
+    if (this.ballSpr) {
+      this.tweens.killTweensOf(this.ballSpr);
+      const R = UAI.PHYSICS.ball.radius;
+      this.ballSpr.setAlpha(1).setAngle(0).setDisplaySize(R * 2 + 2, R * 2 + 2);
+    }
     if (this.ball.isStatic) Body.setStatic(this.ball, false);
     Body.setPosition(this.ball, { x, y });
     Body.setVelocity(this.ball, { x: 0, y: 0 });
@@ -364,6 +547,11 @@ class GameScene extends Phaser.Scene {
     this.chevrons = (LT.chevrons || []).map(([x, y]) => this.lights.add(x, y, { r: 34, color: 0xff8a1f, base: 0.18 }));
     this.grid = (LT.grid || []).map(([x, y]) => this.lights.add(x, y, { r: 52, color: 0xffc861, base: 0.14, onLevel: 0.8 }));
     this.extraLamps = (LT.extra || []).map(([x, y]) => this.lights.add(x, y, { r: 60, color: 0xffa24a, base: 0.18 }));
+    // faíscas em volta do cubo da roda central (acendem no choque)
+    const hub = L.bumpers.find(b => b.shock);
+    this.sparks = hub ? [0, 1, 2, 3, 4, 5, 6, 7].map(k => this.lights.add(
+      hub.x + Math.cos(k * Math.PI / 4) * 52, hub.y + Math.sin(k * Math.PI / 4) * 44,
+      { r: 26, color: 0x9fe8ff, base: 0.0, decay: 300 })) : [];
     this.drainLamp = LT.drain ? this.lights.add(LT.drain[0], LT.drain[1], { r: 70, color: 0xff3a1a, base: 0.05, decay: 900 }) : null;
     // Medidor da mola, dentro do corredor
     const [bx, by] = L.ballStart;
@@ -413,13 +601,23 @@ class GameScene extends Phaser.Scene {
       B.halo.setAlpha((0.22 + 0.08 * Math.sin(t / 420 + B.phase) + B.flash * 0.8) * this.lights.gi);
       B.cap.setAlpha(B.flash * 0.9 * this.lights.gi);
       B.spinBoost = Math.max(0, (B.spinBoost || 0) - dt * 0.00002);
-      B.spr.rotation += B.spin * dt * (0.00025 + B.flash * 0.004 + (B.spinBoost || 0));
+      if (B.spr) B.spr.rotation += B.spin * dt * (0.00025 + B.flash * 0.004 + (B.spinBoost || 0));
     });
     // brilho das palhetas acionadas
     this.flippers.forEach(f => {
       const target = f.pressed ? 0.55 : 0;
       f.glow.setAlpha(f.glow.alpha + (target - f.glow.alpha) * Math.min(1, dt / 60));
     });
+    (this.holes || []).forEach((H, i) => {
+      if (H.type === 'blackhole') {
+        if (H.swirl) H.swirl.rotation -= dt * (this.ballState === 'hole' ? 0.012 : 0.0025);
+        H.lamp.extra = 0.25 + 0.2 * Math.sin(t / 380);
+      } else {
+        H.lamp.on = H.lit;
+        if (!H.lit) H.lamp.extra = 0.1 + 0.1 * Math.sin(t / 260 + i * 2);
+      }
+    });
+    if (this.spring) this.spring.lamp.extra = 0.12 + 0.1 * Math.sin(t / 500);
     this.party = Math.max(0, this.party - dt);
     this.lights.update(dt);
   }
@@ -633,6 +831,8 @@ class GameScene extends Phaser.Scene {
         case 'sling': this.hitSling(this.slings[u.i]); break;
         case 'ramp': this.onRampSensor(u.which); break;
         case 'rollover': this.onRollover(u.i); break;
+        case 'hole': this.slingChain = 0; this.captureHole(this.holes[u.i]); break;
+        case 'spring': this.fireSpring(false); break;
         case 'wall': {
           const now = this.time.now;
           if (now - this.lastWallSound > 90 && this.Body.getSpeed(this.ball) > 8) { UAI.Sfx.wall(); this.lastWallSound = now; }
@@ -658,8 +858,9 @@ class GameScene extends Phaser.Scene {
     const p = this.ball.position;
     let dx = p.x - B.x, dy = p.y - B.y;
     const d = Math.hypot(dx, dy) || 1;
-    const kick = this.diff.bumperKick;
+    const kick = this.diff.bumperKick * (B.shock ? 1.35 : 1);
     this.pendingKick = { x: (dx / d) * kick, y: (dy / d) * kick };
+    if (B.shock) this.shock(B);
     B.flash = 1;
     this.tweens.add({ targets: B.holder, scaleX: 1.12, scaleY: B.persp * 1.12, duration: 60, yoyo: true });
     UAI.Sfx.bumper(i);
@@ -810,7 +1011,7 @@ class GameScene extends Phaser.Scene {
     const k = Phaser.Math.Clamp((sp - 6) / 18, 0, 1);
     this.trail.forEach((img, i) => {
       const q = this.trailPts[i * 2 + 1];
-      if (!q || this.ballState === 'drain') { img.setAlpha(0); return; }
+      if (!q || this.ballState === 'drain' || this.ballState === 'hole') { img.setAlpha(0); return; }
       const s = 34 - i * 3;
       img.setPosition(q.x, q.y).setDisplaySize(s, s).setAlpha(k * 0.5 * (1 - i / this.trail.length));
     });
@@ -827,7 +1028,7 @@ class GameScene extends Phaser.Scene {
   }
 
   checkBall(dt) {
-    if (this.ballState === 'drain' || this.ballState === 'over') return;
+    if (this.ballState === 'drain' || this.ballState === 'over' || this.ballState === 'hole') return;
     const p = this.ball.position, C = UAI.CONFIG;
     const [bx] = this.layout.ballStart;
     // saiu do corredor → bola em jogo
@@ -953,6 +1154,8 @@ class GameScene extends Phaser.Scene {
     const LT = L.lights || {};
     ['chevrons', 'grid', 'extra'].forEach(k => (LT[k] || []).forEach(p => mk(p[0], p[1], 0xff40ff, (x, y) => { p[0] = x; p[1] = y; }, { kind: 'light' })));
     if (LT.drain) mk(LT.drain[0], LT.drain[1], 0xff40ff, (x, y) => { LT.drain[0] = x; LT.drain[1] = y; }, { kind: 'light' });
+    (L.holes || []).forEach(hh => mk(hh.x, hh.y, 0xa060ff, (x, y) => { hh.x = x; hh.y = y; }, { kind: 'hole' }));
+    if (L.spring) mk(L.spring.x, L.spring.y, 0xa060ff, (x, y) => { L.spring.x = x; L.spring.y = y; }, { kind: 'spring' });
     mk(L.ballStart[0], L.ballStart[1], 0x4080ff, (x, y) => { L.ballStart[0] = x; L.ballStart[1] = y; }, { kind: 'start' });
   }
 

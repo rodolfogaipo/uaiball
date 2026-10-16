@@ -28,7 +28,10 @@ class GameOverScene extends Phaser.Scene {
       fontFamily: UI.FONT_TITLE, fontSize: '76px', color: '#ffd27a', stroke: '#2a1406', strokeThickness: 10
     }).setOrigin(0.5).setShadow(0, 0, '#ff5a20', 20, false, true);
 
-    this.add.text(W / 2, 330, UAI.DIFFICULTIES[this.diffKey].label, {
+    this.add.text(W / 2, 300, 'Acabaram as bolas, sô!', {
+      fontFamily: UI.FONT_TITLE, fontSize: '30px', color: '#ffe7b8', stroke: '#2a1406', strokeThickness: 5
+    }).setOrigin(0.5);
+    this.add.text(W / 2, 342, UAI.DIFFICULTIES[this.diffKey].label, {
       fontFamily: UI.FONT_NUM, fontSize: '24px', color: '#e8c48a'
     }).setOrigin(0.5);
 
@@ -60,7 +63,26 @@ class GameOverScene extends Phaser.Scene {
     UI.button(this, W / 2, 910, 340, 78, 'RANKING', () => this.scene.start('Ranking', { from: 'GameOver', highlight: this.savedEntry }), { size: 32 });
     UI.button(this, W / 2, 1015, 340, 78, 'MENU', () => this.scene.start('Menu'), { size: 32 });
 
-    this.checkRanking();
+    this.countTxt = this.add.text(W / 2, 1100, '', {
+      fontFamily: 'Georgia, serif', fontSize: '22px', color: '#d8b98a'
+    }).setOrigin(0.5);
+    this.input.keyboard.on('keydown-ENTER', () => this.scene.start('Menu'));
+
+    this.checkRanking().catch(() => {}).then(() => this.backToMenu());
+  }
+
+  /** Volta sozinho para o menu principal depois de alguns segundos */
+  backToMenu() {
+    if (!this.sys.isActive()) return;
+    let n = 8;
+    const tick = () => {
+      if (!this.sys.isActive()) return;
+      if (n <= 0) { this.scene.start('Menu'); return; }
+      this.countTxt.setText('Voltando ao menu em ' + n + '...');
+      n--;
+      this.time.delayedCall(1000, tick);
+    };
+    tick();
   }
 
   async checkRanking() {

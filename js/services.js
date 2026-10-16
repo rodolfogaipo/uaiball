@@ -81,6 +81,11 @@ UAI.Sfx = {
   mult() { [392, 523, 659, 784, 1046, 1318].forEach((f, i) => this.tone(f, 0.15, 'square', 0.06, null, i * 0.06)); },
   drain() { this.tone(330, 0.7, 'sawtooth', 0.08, 60); },
   click() { this.tone(700, 0.04, 'square', 0.04); },
+  saucer() { this.tone(200, 0.18, 'square', 0.08, 90); this.tone(900, 0.1, 'triangle', 0.06, 1400, 0.1); },
+  eject() { this.noise(0.12, 0.08, 1800); this.tone(300, 0.1, 'square', 0.06, 700); },
+  blackhole() { this.tone(500, 1.0, 'sawtooth', 0.07, 40); this.tone(760, 1.0, 'sine', 0.05, 60); this.noise(0.9, 0.05, 500); },
+  tunnel() { [330, 392, 440, 523, 587].forEach((f, i) => this.tone(f, 0.12, 'triangle', 0.06, null, i * 0.16)); },
+  shock() { this.noise(0.18, 0.14, 6000); this.tone(1800, 0.12, 'square', 0.05, 300); },
   gameover() { [392, 330, 262, 196].forEach((f, i) => this.tone(f, 0.3, 'triangle', 0.09, null, i * 0.22)); },
   record() { [523, 659, 784, 1046, 784, 1046, 1318].forEach((f, i) => this.tone(f, 0.14, 'square', 0.06, null, i * 0.1)); }
 };
@@ -232,6 +237,29 @@ UAI.Tex = {
     g.addColorStop(1, 'rgba(255,255,255,0)');
     x.fillStyle = g; x.fillRect(0, 0, 128, 128);
     this.add(scene, 'glow', c);
+
+    // buraco: fundo escuro com borda suave
+    const p = this.canvas(128, 128), px = p.getContext('2d');
+    const pg = px.createRadialGradient(64, 60, 4, 64, 64, 64);
+    pg.addColorStop(0, 'rgba(0,0,0,1)'); pg.addColorStop(0.55, 'rgba(8,4,2,0.95)');
+    pg.addColorStop(0.8, 'rgba(30,15,5,0.5)'); pg.addColorStop(1, 'rgba(0,0,0,0)');
+    px.fillStyle = pg; px.fillRect(0, 0, 128, 128);
+    this.add(scene, 'pit', p);
+
+    // espiral do buraco negro
+    const w = this.canvas(160, 160), wx = w.getContext('2d');
+    wx.translate(80, 80);
+    for (let arm = 0; arm < 4; arm++) {
+      wx.rotate(Math.PI / 2);
+      wx.beginPath();
+      for (let k = 0; k <= 60; k++) {
+        const t = k / 60, r = 8 + t * 70, a = t * 4.2;
+        const xx = Math.cos(a) * r, yy = Math.sin(a) * r;
+        k ? wx.lineTo(xx, yy) : wx.moveTo(xx, yy);
+      }
+      wx.strokeStyle = 'rgba(255,255,255,0.55)'; wx.lineWidth = 5; wx.stroke();
+    }
+    this.add(scene, 'swirl', w);
   },
 
   /** Desenhos simples usados só se algum PNG não carregar */
