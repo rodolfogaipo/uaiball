@@ -27,9 +27,10 @@
   <aside class="side side-left">
     <h2>Controles</h2>
     <ul>
-      <li><kbd>←</kbd> ou <kbd>A</kbd> palheta esquerda</li>
-      <li><kbd>→</kbd> ou <kbd>D</kbd> palheta direita</li>
+      <li><kbd>←</kbd> <kbd>A</kbd> ou <kbd>Shift</kbd> palheta esquerda</li>
+      <li><kbd>→</kbd> <kbd>D</kbd> ou <kbd>Shift</kbd> palheta direita</li>
       <li>Segure <kbd>↓</kbd> ou <kbd>Espaço</kbd> e solte para lançar</li>
+      <li><kbd>↑</kbd> ou <kbd>W</kbd> sacode a mesa</li>
       <li><kbd>P</kbd> / <kbd>Esc</kbd> pausa</li>
     </ul>
     <h2>Ajuste da mesa</h2>
@@ -45,7 +46,8 @@
     <h2>Pontuação</h2>
     <ul>
       <li>Bumper: <b>100</b></li>
-      <li>Rampa completa: <b>500</b></li>
+      <li>Rampa da ferradura: <b>1.000</b></li>
+      <li>Órbita da câmara da mola: <b>500</b></li>
       <li>Estilingue: <b>10</b></li>
       <li>Triângulos (cada): <b>50</b></li>
       <li>Trio aceso: <b>1.000</b></li>
@@ -72,11 +74,12 @@
 
   <div id="rotate"><div>↻<br />Gire o celular na vertical, sô!</div></div>
 
-  <!-- Phaser 3 (já inclui o Matter.js) -->
+  <!-- Phaser 3 (só para desenho e som; a física é própria: js/physics.js) -->
   <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
 
   <!-- Configuração e utilitários -->
   <script src="js/config.js"></script>
+  <script src="js/physics.js"></script>
   <script src="js/services.js"></script>
   <script src="js/lights.js"></script>
 

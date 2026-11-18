@@ -22,9 +22,10 @@ As imagens em `assets/` já estão recortadas com fundo transparente.
 ## Controles
 | Ação | Teclado | Celular |
 |---|---|---|
-| Palheta esquerda | ← ou A | toque na metade esquerda |
-| Palheta direita | → ou D | toque na metade direita |
+| Palheta esquerda | ← , A ou Shift esquerdo | toque na metade esquerda |
+| Palheta direita | → , D ou Shift direito | toque na metade direita |
 | Mola | segure ↓ / Espaço e solte | com a bola no corredor, toque no canto inferior direito e arraste para cima |
+| Sacudir a mesa | ↑ ou W | — |
 | Pausa | P / Esc | botão II |
 
 ## Debug e editor da mesa
@@ -41,7 +42,29 @@ As imagens em `assets/` já estão recortadas com fundo transparente.
 
 Sem a URL, o jogo usa um ranking local do aparelho (funciona offline).
 
-## Regras
-3 bolas · Bumper 100 · Rampa completa 500 · Estilingue 10 · Triângulos 50 (os 3 = 1.000) · multiplicador sobe a cada 5.000 pontos (até x8, mostrado no quadro de luzes).
-Buracos: estrela e caveiras prendem a bola e cospem de volta (750; os 3 = Mina de Ouro 3.000). O planeta é um **buraco negro**: suga a bola, ela viaja por um túnel e sai disparada pela **mola** (1.500 + 250). O cubo da roda central dá **choque** e arremessa a bola.
-A rampa é a ferradura do topo: entre por baixo do braço esquerdo ou pelo acelerador do lado direito e dê a volta completa.
+## Regras e pontuação
+3 bolas (com **bola salva** nos primeiros segundos de cada bola no Fácil e no Médio).
+
+| Alvo | Pontos |
+|---|---|
+| Bumper (engrenagem) | 100 |
+| Rampa da ferradura (entra pelas varetas da direita, sai pelo braço esquerdo) | 1.000 |
+| Rampa reversa (sobe o braço esquerdo, desce pela direita) | 1.000 |
+| Órbita da câmara da mola (lado esquerdo) | 500 |
+| Buraco estrela/caveira | 750 (os 3 acesos = Mina de Ouro 3.000) |
+| Buraco negro + túnel até a mola | 1.500 + 250 |
+| Cubo da roda central (choque que acelera a bola) | 100 |
+| Estilingue | 10 · Triângulos 50 (os 3 = 1.000) |
+
+O multiplicador sobe a cada 5.000 pontos (até x8, mostrado no quadro de luzes).
+
+## Física
+O jogo usa um **motor de física próprio de pinball** (`js/physics.js`), feito com base no
+código aberto do **Visual Pinball X** e do **Space Cadet Pinball**:
+- 1000 passos de física por segundo (bola nunca atravessa parede)
+- palheta gira de verdade: a ponta bate mais forte que a base
+- borracha perde elasticidade em batidas fortes (falloff do VPX)
+- bumpers e estilingues só chutam acima de um impacto mínimo
+- buraco negro com campo de atração
+
+Os valores ficam em `js/config.js` (bloco `UAI.PHYSICS` e `UAI.DIFFICULTIES`).

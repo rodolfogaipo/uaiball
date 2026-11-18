@@ -17,18 +17,6 @@
     },
     render: { antialias: true, roundPixels: false },
     input: { activePointers: 4 },           // multitoque: duas palhetas + mola ao mesmo tempo
-    physics: {
-      default: 'matter',
-      matter: {
-        gravity: { x: 0, y: 1 },            // a dificuldade troca esse valor na GameScene
-        enableSleeping: false,              // bola nunca "dorme"
-        positionIterations: 10,             // mais iterações = colisões mais firmes
-        velocityIterations: 8,
-        constraintIterations: 4,
-        autoUpdate: false,                  // a GameScene faz sub-passos manuais (anti-atravessamento)
-        debug: false
-      }
-    },
     scene: [BootScene, MenuScene, GameScene, GameOverScene, RankingScene]
   };
 
