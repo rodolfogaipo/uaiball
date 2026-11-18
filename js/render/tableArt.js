@@ -146,6 +146,8 @@ UAI.TableArt = {
     tree(c) { c.moveTo(-4, 40); c.lineTo(-4, 6); c.lineTo(4, 6); c.lineTo(4, 40); c.moveTo(0, -44); c.bezierCurveTo(40, -40, 40, 10, 0, 6); c.bezierCurveTo(-40, 10, -40, -40, 0, -44); },
     house(c) { c.rect(-30, -4, 60, 36); c.moveTo(-40, -2); c.lineTo(0, -36); c.lineTo(40, -2); c.rect(-8, 10, 16, 22); c.rect(-24, 4, 10, 10); c.rect(14, 4, 10, 10); },
     lantern(c) { c.rect(-14, -24, 28, 44); c.moveTo(-18, -24); c.lineTo(0, -36); c.lineTo(18, -24); c.moveTo(0, -36); c.lineTo(0, -46); c.moveTo(-18, 20); c.lineTo(18, 20); c.moveTo(0, 12); c.bezierCurveTo(-8, 2, -2, -8, 0, -14); c.bezierCurveTo(4, -6, 6, 4, 0, 12); },
+    spring(c) { c.rect(-14, -46, 28, 10); c.rect(-14, 36, 28, 10); for (let i = 0; i < 7; i++) { const y = -36 + i * 10.3; c.moveTo(-12, y); c.lineTo(12, y + 5); c.lineTo(-12, y + 10.3); } },
+    skull(c) { c.moveTo(-24, 6); c.bezierCurveTo(-30, -36, 30, -36, 24, 6); c.lineTo(16, 12); c.lineTo(16, 24); c.lineTo(-16, 24); c.lineTo(-16, 12); c.closePath(); c.moveTo(-3, -2); c.arc(-10, -4, 7, 0, 7); c.moveTo(17, -4); c.arc(10, -4, 7, 0, 7); c.moveTo(0, 4); c.lineTo(-4, 12); c.lineTo(4, 12); c.closePath(); c.moveTo(-8, 18); c.lineTo(-8, 24); c.moveTo(0, 18); c.lineTo(0, 24); c.moveTo(8, 18); c.lineTo(8, 24); },
     lightning(c) { c.moveTo(8, -40); c.lineTo(-16, 4); c.lineTo(2, 4); c.lineTo(-8, 40); c.lineTo(18, -8); c.lineTo(0, -8); c.closePath(); }
   },
 
@@ -281,6 +283,7 @@ UAI.TableArt = {
     const th = def.theme || {}, metal = th.wire || '#cfd3d8';
     L.ramps.forEach(R => {
       const pts = this.smoothPath(R.path, 12);
+      if (R.style === 'wood') { this.woodRamp(ctx, pts, def, R); return; }
       // sombra no tabuleiro
       ctx.save(); ctx.translate(10, 14); ctx.globalAlpha = 0.25; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
       this.pathPts(ctx, pts); ctx.strokeStyle = '#000'; ctx.lineWidth = 30; ctx.stroke(); ctx.restore();
@@ -303,6 +306,25 @@ UAI.TableArt = {
       ctx.fillStyle = 'rgba(160,100,50,.85)'; ctx.beginPath(); ctx.arc(m0[0], m0[1], 16, 0, Math.PI * 2); ctx.fill();
     });
     return c;
+  },
+
+  /** rampa de madeira (a ferradura da mesa 1): calha larga com bordas e parafusos */
+  woodRamp(ctx, pts, def, R) {
+    const th = Object.assign({ railWood: ['#7a4620', '#c48444'], railDark: '#24120a', metal: '#d9a441' }, def.theme || {});
+    const pat = ctx.createPattern(this.woodCanvas(160, 160, th.railWood[0], th.railWood[1], this.hashStr(def.id) + 11, 1, 1.3), 'repeat');
+    ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.save(); ctx.translate(12, 16); ctx.globalAlpha = 0.35; this.pathPts(ctx, pts); ctx.strokeStyle = '#000'; ctx.lineWidth = 54; ctx.stroke(); ctx.restore();
+    this.pathPts(ctx, pts); ctx.strokeStyle = th.railDark; ctx.lineWidth = 54; ctx.stroke();
+    this.pathPts(ctx, pts); ctx.strokeStyle = pat; ctx.lineWidth = 48; ctx.stroke();
+    this.pathPts(ctx, pts); ctx.strokeStyle = 'rgba(30,14,4,.55)'; ctx.lineWidth = 30; ctx.stroke();      // calha
+    this.pathPts(ctx, pts); ctx.strokeStyle = pat; ctx.globalAlpha = 0.55; ctx.lineWidth = 26; ctx.stroke(); ctx.globalAlpha = 1;
+    ctx.translate(-1.5, -2); this.pathPts(ctx, pts); ctx.strokeStyle = 'rgba(255,236,200,.22)'; ctx.lineWidth = 3; ctx.stroke();
+    ctx.restore();
+    for (let i = 4; i < pts.length - 2; i += 6) {
+      const p = pts[i], q = pts[i + 1], dx = q[0] - p[0], dy = q[1] - p[1], d = Math.hypot(dx, dy) || 1;
+      this.screw(ctx, p[0] - dy / d * 20, p[1] + dx / d * 20, 3.2, th.metal);
+      this.screw(ctx, p[0] + dy / d * 20, p[1] - dx / d * 20, 3.2, th.metal);
+    }
   },
 
   /** suaviza um caminho de pontos (Catmull-Rom) e devolve pontos espaçados ~step px */

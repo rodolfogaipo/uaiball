@@ -38,8 +38,10 @@ UAI.Kit = {
     const outer = [[32, 1196], [32, 272], ...K.arc(220, 272, 188, 180, 270).slice(1), [672, 84], ...K.arc(672, 272, 188, 270, 360).slice(1), [860, 1160]];
     // trilho interno das órbitas, com uma ABERTURA no alto (x 340–496):
     // a bola lançada devagar cai ali, nas pistas de cima; forte, dá a volta
-    const innerL = [[102, 470], [102, 272], ...K.arc(220, 272, 118, 180, 270).slice(1), [340, 154]];
-    const innerR = [[496, 154], [616, 154], ...K.arc(616, 272, 118, 270, 360).slice(1), [734, 470]];
+    const [g0, g1] = o.gap || [340, 496];
+    const arcL = K.arc(220, 272, 118, 180, 270).slice(1), arcR = K.arc(616, 272, 118, 270, 360).slice(1);
+    const innerL = g0 > 220 ? [[102, 470], [102, 272], ...arcL, [g0, 154]] : [[102, 470], [102, 272], ...arcL.filter(p => p[0] <= g0)];
+    const innerR = [[g1, 154], ...(g1 < 616 ? [[616, 154]] : []), ...arcR, [734, 470]];
     const divL = [[98, 792], [98, 958], [128, 1002], [196, 1034], [248, 1052]];
     const divR = divL.map(([x, y]) => [K.mirror(x), y]).reverse();
     const L = {
@@ -60,7 +62,7 @@ UAI.Kit = {
         { pts: [[32, 480], [100, 548]], pass: [0, -1], t: 4 },      // fundo da órbita esquerda
         { pts: [[804, 480], [736, 548]], pass: [0, -1], t: 4 }      // fundo da órbita direita
       ],
-      posts: [[98, 792, 7], [K.mirror(98), 792, 7], [340, 154, 7], [496, 154, 7]],
+      posts: [[98, 792, 7], [K.mirror(98), 792, 7], [innerL[innerL.length - 1][0], innerL[innerL.length - 1][1], 7], [g1, 154, 7]],
       blocks: [],
       bumpers: [],
       slings: [
@@ -134,7 +136,7 @@ UAI.Kit = {
       sensor: [Math.round(m.x + ux * len * 0.62), Math.round(m.y + uy * len * 0.62), 20],
       dir: [ux, uy], minSpeed: o.minSpeed || 650,
       path: [[Math.round(m.x + ux * len), Math.round(m.y + uy * len)], ...o.path],
-      exitVel: o.exitVel || [0, 500], jackpot: !!o.jackpot, duration: o.duration || 1100
+      exitVel: o.exitVel || [0, 500], jackpot: !!o.jackpot, duration: o.duration || 1100, style: o.style || 'wire'
     });
     L.lights.shots[o.id] = [[Math.round(m.x - ux * 46), Math.round(m.y - uy * 46), Math.atan2(uy, ux) * 180 / Math.PI],
                             [Math.round(m.x - ux * 80), Math.round(m.y - uy * 80), Math.atan2(uy, ux) * 180 / Math.PI]];

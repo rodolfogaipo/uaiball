@@ -19,7 +19,7 @@ js/progress.js        ← carreira: XP, níveis, estrelas, desbloqueio, conquist
 js/services.js        ← sons, ranking por mesa, armazenamento, botões
 js/lights.js          ← sistema de luzes
 js/tables/kit.js      ← "esqueleto" e peças para montar mesas
-js/tables/t01_uaiball.js   ← mesa 1 (arte original assets/mesa.png)
+js/tables/t01_uaiball.js   ← mesa 1 (reconstruída da arte original: tudo o que aparece funciona)
 js/tables/t02_t06.js  ← mesas 2 a 6
 js/tables/t07_t11.js  ← mesas 7 a 11
 js/render/tableArt.js ← desenha as mesas 2–11 (madeira, trilhos, latão, gravuras)
