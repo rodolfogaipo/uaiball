@@ -30,6 +30,7 @@ class GameScene extends Phaser.Scene {
   create() {
     const C = UAI.CONFIG, P = UAI.PHYSICS;
     this.W = C.WIDTH; this.H = C.HEIGHT;
+    UAI.setupView(this);
     this.mods = Object.assign({ gravity: 1, omega: 1, ballSave: 1 }, this.def.mods || {});
     this.rules = Object.assign({ lockHoles: [], locksNeeded: 3, multStep: 6000 }, this.def.rules || {});
 
@@ -67,6 +68,7 @@ class GameScene extends Phaser.Scene {
 
     this.buildDecorAnim();
     this.newBall(true);
+    if (this.sys.game.device.input.touch && !UAI.Store.get('touchHelp', false)) this.showTouchHelp();
     if (/[?&]editor=1/.test(location.search)) this.toggleEditor();
   }
 
@@ -472,6 +474,7 @@ class GameScene extends Phaser.Scene {
     const power = (P.min + (P.max - P.min) * charge) * this.diff.plunger;
     b.vx = 0; b.vy = -power;
     b.data.launchedAt = this.now;
+    if (byPlayer) UAI.Haptic.buzz(20 + Math.round(charge * 30));
     b.data.skill = byPlayer && Math.min(7, Math.floor(charge * 8)) === this.skillLamp;
     UAI.Sfx.launch(charge);
     this.lights.flashAll(this.meter, 0.9);
@@ -592,6 +595,7 @@ class GameScene extends Phaser.Scene {
 
   loseBall() {
     this.lives--;
+    UAI.Haptic.buzz([70, 50, 120]);
     this.betweenBalls = true;
     UAI.Sfx.drain();
     this.lights.show(this.lights.list.slice().sort((a, b) => b.y - a.y), 'off', 900);
@@ -821,37 +825,62 @@ class GameScene extends Phaser.Scene {
      HUD
      ========================================================= */
   createHUD() {
-    const UI = UAI.UI, W = this.W, H = this.H;
+    const UI = UAI.UI, W = this.W, H = this.H, OFF = UAI.view.OFF;
+    const T = OFF >= 104 ? -104 : 0;                       // placar acima da mesa quando a tela é comprida
+    const BY = OFF >= 64 ? H + 34 : H - 27;                // barra de missão abaixo da mesa
+    if (OFF > 0) {                                          // gabinete de madeira nas sobras
+      if (!this.textures.exists('cabwood')) UAI.Tex.add(this, 'cabwood', UAI.TableArt.woodCanvas(256, 256, '#1a0d06', '#4a2a14', 77, 1, 0.8));
+      this.add.tileSprite(W / 2, -OFF / 2, W, OFF, 'cabwood').setDepth(19);
+      this.add.tileSprite(W / 2, H + OFF / 2, W, OFF, 'cabwood').setDepth(19);
+      const sh = this.add.graphics().setDepth(19.5);
+      sh.fillGradientStyle(0x000000, 0x000000, 0x000000, 0x000000, 0, 0, 0.7, 0.7).fillRect(0, -18, W, 18);
+      sh.fillGradientStyle(0x000000, 0x000000, 0x000000, 0x000000, 0.7, 0.7, 0, 0).fillRect(0, H, W, 18);
+      sh.lineStyle(3, 0xc9973f, 1).lineBetween(0, -2, W, -2).lineBetween(0, H + 2, W, H + 2);
+      // sobra de cima: logo e nome da mesa; sobra de baixo: onde tocar
+      const freeTop = OFF - 104;
+      if (freeTop > 90) {
+        const lg = this.add.image(W / 2, -OFF + freeTop / 2, 'logo').setDepth(20);
+        lg.setScale(Math.min(freeTop * 0.9 / lg.height, 260 / lg.width));
+        this.add.image(W / 2, -OFF + freeTop / 2, 'glow').setBlendMode(Phaser.BlendModes.ADD).setTint(0xff9a30).setDisplaySize(420, freeTop * 1.4).setAlpha(0.25).setDepth(19.8);
+      }
+      const freeBot = OFF - 70;
+      if (freeBot > 60) {
+        const y = H + 70 + freeBot / 2, st = { fontFamily: UI.FONT_TITLE, fontSize: '30px', color: '#ffd27a', stroke: '#2a1406', strokeThickness: 6 };
+        this.add.text(W * 0.25, y, '◀ PALHETA', st).setOrigin(0.5).setDepth(20).setAlpha(0.75);
+        this.add.text(W * 0.75, y, 'PALHETA ▶', st).setOrigin(0.5).setDepth(20).setAlpha(0.75);
+        const mid = this.add.graphics().setDepth(20); mid.lineStyle(2, 0xc9973f, 0.5).lineBetween(W / 2, H + 80, W / 2, H + OFF - 10);
+      }
+    }
     const g = this.add.graphics().setDepth(20);
     g.fillGradientStyle(0x000000, 0x000000, 0x000000, 0x000000, 0.78, 0.78, 0, 0);
-    g.fillRect(0, 0, W, 96);
-    this.add.text(30, 8, 'PONTOS', { fontFamily: UI.FONT_NUM, fontSize: '14px', color: '#d8b98a' }).setDepth(21);
-    this.scoreTxt = this.add.text(28, 22, '0', {
+    g.fillRect(0, T, W, 96);
+    this.add.text(30, T + 8, 'PONTOS', { fontFamily: UI.FONT_NUM, fontSize: '14px', color: '#d8b98a' }).setDepth(21);
+    this.scoreTxt = this.add.text(28, T + 22, '0', {
       fontFamily: UI.FONT_NUM, fontSize: '34px', color: '#ffd27a', stroke: '#2a1406', strokeThickness: 6
     }).setDepth(21).setShadow(0, 0, '#ff9a30', 12, false, true);
-    this.multTxt = this.add.text(W / 2, 32, 'x1', {
+    this.multTxt = this.add.text(W / 2, T + 32, 'x1', {
       fontFamily: UI.FONT_NUM, fontSize: '36px', color: '#fff0c8', stroke: '#2a1406', strokeThickness: 6
     }).setOrigin(0.5).setDepth(21).setShadow(0, 0, '#ffb040', 14, false, true);
-    this.statusTxt = this.add.text(W / 2, 70, '', {
+    this.statusTxt = this.add.text(W / 2, T + 70, '', {
       fontFamily: UI.FONT_NUM, fontSize: '15px', color: '#f3dfb4', stroke: '#2a1406', strokeThickness: 4
     }).setOrigin(0.5).setDepth(21);
-    this.add.text(W - 104, 8, 'RECORDE DA MESA', { fontFamily: UI.FONT_NUM, fontSize: '12px', color: '#d8b98a' }).setOrigin(1, 0).setDepth(21);
-    this.highTxt = this.add.text(W - 104, 24, UAI.fmt(this.high), {
+    this.add.text(W - 104, T + 8, 'RECORDE DA MESA', { fontFamily: UI.FONT_NUM, fontSize: '12px', color: '#d8b98a' }).setOrigin(1, 0).setDepth(21);
+    this.highTxt = this.add.text(W - 104, T + 24, UAI.fmt(this.high), {
       fontFamily: UI.FONT_NUM, fontSize: '24px', color: '#e8c48a', stroke: '#2a1406', strokeThickness: 5
     }).setOrigin(1, 0).setDepth(21);
-    const pb = this.add.circle(W - 50, 40, 28, 0x4a250e).setStrokeStyle(3, 0xc9973f).setDepth(21).setInteractive({ useHandCursor: true });
-    this.add.text(W - 50, 40, 'II', { fontFamily: UI.FONT_NUM, fontSize: '24px', color: '#ffe7b8' }).setOrigin(0.5).setDepth(22);
+    const pb = this.add.circle(W - 50, T + 40, 28, 0x4a250e).setStrokeStyle(3, 0xc9973f).setDepth(21).setInteractive({ useHandCursor: true });
+    this.add.text(W - 50, T + 40, 'II', { fontFamily: UI.FONT_NUM, fontSize: '24px', color: '#ffe7b8' }).setOrigin(0.5).setDepth(22);
     pb.on('pointerup', () => this.togglePause());
 
     // missão (embaixo, sobre o avental)
     const mg = this.add.graphics().setDepth(20);
-    mg.fillStyle(0x000000, 0.55).fillRoundedRect(130, H - 46, W - 260, 38, 12);
-    this.missionTxt = this.add.text(W / 2, H - 27, '', {
+    mg.fillStyle(0x000000, 0.55).fillRoundedRect(130, BY - 19, W - 260, 38, 12);
+    this.missionTxt = this.add.text(W / 2, BY, '', {
       fontFamily: 'Georgia, serif', fontSize: '18px', color: '#ffe7b8', fontStyle: 'bold'
     }).setOrigin(0.5).setDepth(21);
     this.livesIcons = [];
-    for (let i = 0; i < 5; i++) this.livesIcons.push(this.add.image(30 + i * 24, H - 27, 'ball').setDisplaySize(20, 20).setDepth(21));
-    this.add.text(W - 22, H - 27, this.diff.label, {
+    for (let i = 0; i < 5; i++) this.livesIcons.push(this.add.image(30 + i * 24, BY, 'ball').setDisplaySize(20, 20).setDepth(21));
+    this.add.text(W - 22, BY, this.diff.label, {
       fontFamily: UI.FONT_TITLE, fontSize: '18px', color: '#ffd27a', stroke: '#2a1406', strokeThickness: 4
     }).setOrigin(1, 0.5).setDepth(21);
 
@@ -952,7 +981,7 @@ class GameScene extends Phaser.Scene {
         this.startCharge('touch');
         return;
       }
-      if (y < 110) { this.nudge(); return; }        // toque no alto da tela = sacudir
+      if (y < 110 && y > -UAI.view.OFF) { this.nudge(); return; }        // toque no alto da tela = sacudir
       const side = x < this.W / 2 ? 'L' : 'R';
       this.touchMap[p.id] = side;
       this.setFlipper(side, true);
@@ -973,11 +1002,42 @@ class GameScene extends Phaser.Scene {
     this.input.on('pointerupoutside', up);
 
     this.game.events.on('blur', this.onBlur, this);
+    this.game.events.on('hidden', this.onBlur, this);
     this.events.once('shutdown', () => {
       this.game.events.off('blur', this.onBlur, this);
+      this.game.events.off('hidden', this.onBlur, this);
       const modal = document.getElementById('nameModal');
       if (modal) modal.classList.add('hidden');
     });
+  }
+
+  /** primeira vez no celular: mostra onde tocar */
+  showTouchHelp() {
+    const W = this.W, H = this.H, UI = UAI.UI;
+    this.paused = true; this.helpOpen = true;
+    const c = this.add.container(0, 0).setDepth(90);
+    c.add(this.add.rectangle(W / 2, H / 2, W, UAI.view.H, 0x000000, 0.72).setInteractive());
+    const zone = (x, y, w, h, color, title, sub) => {
+      const g = this.add.graphics(); g.fillStyle(color, 0.22).fillRoundedRect(x, y, w, h, 24); g.lineStyle(4, color, 0.9).strokeRoundedRect(x, y, w, h, 24);
+      c.add(g);
+      c.add(this.add.text(x + w / 2, y + h / 2 - 22, title, { fontFamily: UI.FONT_TITLE, fontSize: '40px', color: '#ffffff', stroke: '#000', strokeThickness: 7, align: 'center' }).setOrigin(0.5));
+      c.add(this.add.text(x + w / 2, y + h / 2 + 30, sub, { fontFamily: 'Georgia, serif', fontSize: '24px', color: '#ffe7b8', stroke: '#000', strokeThickness: 5, align: 'center', wordWrap: { width: w - 30 } }).setOrigin(0.5));
+    };
+    zone(20, 140, W - 40, 150, 0xffd27a, 'SACUDIR', 'toque aqui em cima (sem exagero: dá TILT!)');
+    zone(20, 640, W / 2 - 30, 420, 0x7dff9a, 'PALHETA\nESQUERDA', 'toque e segure');
+    zone(W / 2 + 10, 640, W / 2 - 30, 300, 0x9fe8ff, 'PALHETA\nDIREITA', 'toque e segure');
+    zone(W * 0.62, 950, W * 0.38 - 20, 200, 0xff9a6a, 'MOLA', 'arraste para cima e solte\nna luz verde = tacada de mestre');
+    c.add(this.add.text(W / 2, 470, 'COMO JOGAR', { fontFamily: UI.FONT_TITLE, fontSize: '62px', color: '#ffd27a', stroke: '#2a1406', strokeThickness: 9 }).setOrigin(0.5));
+    const tap = this.add.text(W / 2, 560, 'toque para começar', { fontFamily: 'Georgia, serif', fontSize: '28px', color: '#ffffff' }).setOrigin(0.5);
+    c.add(tap);
+    this.tweens.add({ targets: tap, alpha: 0.3, duration: 600, yoyo: true, repeat: -1 });
+    const opened = Date.now();
+    const close = () => {
+      if (Date.now() - opened < 500) return;           // ignora toque acidental logo ao abrir
+      c.list[0].off('pointerup', close);
+      UAI.Store.set('touchHelp', true); c.destroy(); this.helpOpen = false; this.paused = false; this.world.acc = 0; this.touchMap = {};
+    };
+    c.list[0].on('pointerup', close);
   }
 
   onBlur() { if (!this.paused && !this.over) this.togglePause(); }
@@ -990,6 +1050,7 @@ class GameScene extends Phaser.Scene {
     list.forEach(f => (f.phys.pressed = on));
     if (on && !this.paused) {
       UAI.Sfx.flipper();
+      UAI.Haptic.buzz(8);
       this.rotateLanes(side);
     }
   }
@@ -1008,6 +1069,7 @@ class GameScene extends Phaser.Scene {
 
   tilt() {
     this.tilted = true;
+    UAI.Haptic.buzz(350);
     this.stats.tilts++;
     this.flippers.forEach(f => (f.phys.pressed = false));
     this.banner('TILT', 'Sacudiu demais, sô! Bola perdida', '#ff5a3a', 2000);
@@ -1032,13 +1094,13 @@ class GameScene extends Phaser.Scene {
   }
 
   togglePause() {
-    if (this.over) return;
+    if (this.over || this.helpOpen) return;
     this.paused = !this.paused;
     if (this.paused) {
       this.flippers.forEach(f => (f.phys.pressed = false));
       const W = this.W, H = this.H, UI = UAI.UI;
       const c = this.add.container(0, 0).setDepth(80);
-      c.add(this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.7).setInteractive());
+      c.add(this.add.rectangle(W / 2, H / 2, W, UAI.view.H, 0x000000, 0.7).setInteractive());
       c.add(this.add.text(W / 2, 330, 'PAUSADO', {
         fontFamily: UI.FONT_TITLE, fontSize: '72px', color: '#ffd27a', stroke: '#2a1406', strokeThickness: 10
       }).setOrigin(0.5));

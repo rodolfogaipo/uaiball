@@ -28,6 +28,32 @@ UAI.Store = {
 
 UAI.fmt = n => Math.floor(n).toLocaleString('pt-BR');
 
+/* ---------------- Tela inteira no celular ----------------
+   O desenho do jogo tem 896×1200. Em celular comprido sobra altura:
+   em vez de faixas pretas, a área visível cresce para cima e para baixo
+   (UAI.view.OFF) e o placar/missões vão para essas sobras. */
+UAI.view = { H: 1200, OFF: 0 };
+UAI.setupView = scene => { if (UAI.view.OFF > 0) scene.cameras.main.setScroll(0, -UAI.view.OFF); };
+
+/* ---------------- Modo app (APK) ---------------- */
+UAI.native = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+if (UAI.native) document.documentElement.classList.add('native');
+
+/** aviso rápido na tela */
+UAI.toast = (msg, ms = 1800) => {
+  const t = document.getElementById('toast'); if (!t) return;
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(UAI._toastT); UAI._toastT = setTimeout(() => t.classList.remove('show'), ms);
+};
+
+/* ---------------- Vibração (celular) ---------------- */
+UAI.Haptic = {
+  enabled: true,
+  init() { this.enabled = UAI.Store.get('vibe', true); },
+  toggle() { this.enabled = !this.enabled; UAI.Store.set('vibe', this.enabled); if (this.enabled) this.buzz(40); return this.enabled; },
+  buzz(p) { try { if (this.enabled && navigator.vibrate) navigator.vibrate(p); } catch (e) {} }
+};
+
 /* ---------------- Sons (Web Audio, nada para baixar) ---------------- */
 UAI.Sfx = {
   ctx: null, master: null, enabled: true,

@@ -14,8 +14,9 @@ class RankingScene extends Phaser.Scene {
 
   create() {
     const W = UAI.CONFIG.WIDTH, H = UAI.CONFIG.HEIGHT, UI = UAI.UI;
-    this.add.image(W / 2, H / 2, 'mesa').setDisplaySize(W, H);
-    this.add.rectangle(W / 2, H / 2, W, H, 0x0b0603, 0.74);
+    UAI.setupView(this);
+    this.add.image(W / 2, H / 2, 'mesa').setDisplaySize(Math.max(W, UAI.view.H * W / H), UAI.view.H);
+    this.add.rectangle(W / 2, H / 2, W, UAI.view.H, 0x0b0603, 0.74);
 
     // placa de madeira
     const g = this.add.graphics();

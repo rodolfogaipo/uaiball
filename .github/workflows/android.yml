@@ -1,0 +1,83 @@
+# Fábrica do APK do Uai Ball
+# A cada envio de arquivos para o repositório, o GitHub monta o app Android
+# (Capacitor), assina e publica em "Releases". Link fixo para baixar:
+#   https://github.com/rodolfogaipo/uaiball/releases/latest/download/UaiBall.apk
+name: APK Android
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ['README.md']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apk
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Montar o projeto do app (Capacitor)
+        run: |
+          mkdir -p app/www
+          rsync -a --exclude '.git' --exclude '.github' --exclude 'mobile' --exclude 'app' --exclude 'sw.js' ./ app/www/
+          cp mobile/capacitor.config.json app/
+          cd app
+          npm init -y > /dev/null
+          npm install --no-audit --no-fund @capacitor/core@6 @capacitor/cli@6 @capacitor/android@6 @capacitor/app@6
+          npm install --no-audit --no-fund -D @capacitor/assets@3
+          npx cap add android
+          mkdir -p assets && cp ../mobile/resources/* assets/
+          npx @capacitor/assets generate --android --iconBackgroundColor '#1a0f08' --iconBackgroundColorDark '#1a0f08' --splashBackgroundColor '#1a0f08' --splashBackgroundColorDark '#1a0f08'
+          cp ../mobile/MainActivity.java android/app/src/main/java/com/gaipo/uaiball/MainActivity.java
+          python3 ../mobile/patch_android.py ${{ github.run_number }}
+          npx cap sync android
+
+      - name: Compilar o APK
+        run: |
+          cd app/android
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon --stacktrace
+
+      - name: Assinar o APK
+        run: |
+          BT=$(ls -d $ANDROID_HOME/build-tools/* | sort -V | tail -1)
+          $BT/zipalign -p -f 4 app/android/app/build/outputs/apk/release/app-release-unsigned.apk aligned.apk
+          $BT/apksigner sign --ks mobile/uaiball.keystore --ks-pass pass:uaiball123 --key-pass pass:uaiball123 --ks-key-alias uaiball --out UaiBall.apk aligned.apk
+          $BT/apksigner verify --print-certs UaiBall.apk
+          ls -la UaiBall.apk
+
+      - name: Publicar para baixar (Releases)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: apk-v${{ github.run_number }}
+          name: Uai Ball para Android – versão 1.${{ github.run_number }}
+          make_latest: true
+          files: UaiBall.apk
+          body: |
+            Baixe o **UaiBall.apk** no celular e abra para instalar
+            (se pedir, permita "instalar apps desta fonte").
+
+      - name: Guardar cópia na branch apk
+        run: |
+          mkdir out && cp UaiBall.apk out/ && cd out
+          echo "versao 1.${{ github.run_number }} – ${{ github.sha }}" > VERSAO.txt
+          git init -q && git checkout -q -b apk
+          git config user.name "github-actions" && git config user.email "actions@github.com"
+          git add . && git commit -qm "APK 1.${{ github.run_number }}"
+          git push -f -q https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }} apk

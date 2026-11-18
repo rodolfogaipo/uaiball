@@ -1,0 +1,12 @@
+{
+  "appId": "com.gaipo.uaiball",
+  "appName": "Uai Ball",
+  "webDir": "www",
+  "server": { "androidScheme": "https" },
+  "android": {
+    "backgroundColor": "#1a0f08",
+    "allowMixedContent": false,
+    "captureInput": true,
+    "webContentsDebuggingEnabled": false
+  }
+}

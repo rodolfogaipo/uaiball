@@ -277,7 +277,8 @@ Object.assign(GameScene.prototype, {
     if (b) b.data.slingChain = 0;
     if (B.kind === 'shock') this.shockFx(B);
     B.flash = 1;
-    B.litUntil = this.now + 120;                 // desenho ACESO por um instante (TBumper::Fire)
+    B.litUntil = this.now + 120;
+    UAI.Haptic.buzz(14);                 // desenho ACESO por um instante (TBumper::Fire)
     if (B.holder) this.tweens.add({ targets: B.holder, scaleX: 1.1, scaleY: B.persp * 1.1, duration: 55, yoyo: true });
     UAI.Sfx.bumper(i + this.bumperLevel);
     const mult = [1, 1.5, 2, 3][this.bumperLevel] || 1;
@@ -367,6 +368,7 @@ Object.assign(GameScene.prototype, {
     if (d.slingChain >= 3) { const k = c.m.kick * 0.65; b.vx -= c.m.face[0] * k; b.vy -= c.m.face[1] * k; }
     this.lights.flashAll(S.lamps, 1);
     UAI.Sfx.sling();
+    UAI.Haptic.buzz(10);
     this.addScore(UAI.CONFIG.POINTS.sling, b.x, b.y - 30);
   },
 
@@ -523,6 +525,7 @@ Object.assign(GameScene.prototype, {
         this.world.placeBall(b, K.x, K.y, 0, -K.speed);
         b.data.state = 'play';
         UAI.Sfx.launch(1);
+        UAI.Haptic.buzz(30);
         this.cameras.main.shake(160, 0.008);
       });
       return;
@@ -537,6 +540,7 @@ Object.assign(GameScene.prototype, {
     this.locks = 0;
     this.jackpotsThisMB = 0;
     this.stats.multiballs++;
+    UAI.Haptic.buzz([40, 40, 40, 40, 120]);
     this.banner('MULTIBOLA!', 'Acerte as rampas e os buracos: JACKPOT!', '#ffe066', 2200);
     this.lights.show(this.lights.list, 'show', 3200);
     UAI.Sfx.mult();
@@ -559,6 +563,7 @@ Object.assign(GameScene.prototype, {
   jackpot(b) {
     const v = this.jackpotValue, P = UAI.CONFIG.POINTS;
     this.stats.jackpots++;
+    UAI.Haptic.buzz([30, 30, 80]);
     this.jackpotsThisMB++;
     this.addScore(v, b.x, b.y - 60, true);
     this.after(250, () => this.banner('JACKPOT!', '+' + UAI.fmt(v), '#ffe066', 1200));

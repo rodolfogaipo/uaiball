@@ -15,8 +15,10 @@ UAI.thumb = function (scene, def) {
 UAI.menuBackdrop = function (scene, dark = 0.62, texKey) {
   const W = UAI.CONFIG.WIDTH, H = UAI.CONFIG.HEIGHT;
   if (!texKey) texKey = 'mesa';
-  scene.add.image(W / 2, H / 2, texKey).setDisplaySize(W, H);
-  scene.add.rectangle(W / 2, H / 2, W, H, 0x0b0603, dark);
+  UAI.setupView(scene);
+  const VH = UAI.view.H, top = -UAI.view.OFF;
+  scene.add.image(W / 2, H / 2, texKey).setDisplaySize(VH * W / H > W ? VH * W / H : W, VH);
+  scene.add.rectangle(W / 2, H / 2, W, VH, 0x0b0603, dark);
   scene.lights = new UAI.LightRig(scene);
   scene.rim = [];
   const pad = 22, step = 52;
@@ -28,8 +30,9 @@ UAI.menuBackdrop = function (scene, dark = 0.62, texKey) {
         { r: 22, color: scene.rim.length % 2 ? 0xff7a2a : 0xffd27a, base: 0.08, depth: 2 }));
     }
   };
-  edge(pad, pad, W - pad, pad); edge(W - pad, pad, W - pad, H - pad);
-  edge(W - pad, H - pad, pad, H - pad); edge(pad, H - pad, pad, pad);
+  const y0 = top + pad, y1 = top + VH - pad;
+  edge(pad, y0, W - pad, y0); edge(W - pad, y0, W - pad, y1);
+  edge(W - pad, y1, pad, y1); edge(pad, y1, pad, y0);
 };
 UAI.chaseRim = function (scene, time, delta, speed = 0.012) {
   scene.rim.forEach((L, i) => { const ph = ((i - time * speed) % 7 + 7) % 7; L.extra = ph < 2 ? 0.75 : 0; });
@@ -118,6 +121,10 @@ class MenuScene extends Phaser.Scene {
 
     const snd = this.add.text(W - 70, 70, UAI.Sfx.enabled ? '🔊' : '🔇', { fontSize: '40px' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
     snd.on('pointerup', () => { snd.setText(UAI.Sfx.toggle() ? '🔊' : '🔇'); UAI.Sfx.click(); });
+    if (this.sys.game.device.input.touch) {
+      const vb = this.add.text(W - 140, 70, UAI.Haptic.enabled ? '📳' : '📴', { fontSize: '38px' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+      vb.on('pointerup', () => { vb.setText(UAI.Haptic.toggle() ? '📳' : '📴'); UAI.Sfx.click(); UAI.toast(UAI.Haptic.enabled ? 'Vibração ligada' : 'Vibração desligada', 1200); });
+    }
 
     this.input.keyboard.on('keydown-ENTER', () => this.play());
     this.input.keyboard.on('keydown-SPACE', () => this.play());

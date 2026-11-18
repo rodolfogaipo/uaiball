@@ -6,6 +6,7 @@ class BootScene extends Phaser.Scene {
 
   preload() {
     const W = UAI.CONFIG.WIDTH, H = UAI.CONFIG.HEIGHT;
+    UAI.setupView(this);
     this.add.text(W / 2, H / 2 - 70, 'UAI BALL', {
       fontFamily: 'Georgia, serif', fontSize: '64px', color: '#ffd27a'
     }).setOrigin(0.5);

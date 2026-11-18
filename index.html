@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content" />
   <title>Uai Ball – Pinball Mineiro</title>
   <meta name="description" content="Uai Ball – pinball rústico mineiro de madeira pirogravada." />
   <meta name="theme-color" content="#1a0f08" />
@@ -16,9 +16,7 @@
   <link rel="manifest" href="manifest.json" />
 
   <!-- Fontes: Rye (rústica/faroeste) e Bungee (placar) -->
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Bungee&family=Rye&display=swap" rel="stylesheet" />
+  <!-- (as fontes ficam em assets/fonts e são declaradas no style.css: funciona offline e no APK) -->
 
   <link rel="stylesheet" href="style.css" />
 </head>
@@ -71,10 +69,11 @@
     </div>
   </div>
 
+  <div id="toast"></div>
   <div id="rotate"><div>↻<br />Gire o celular na vertical, sô!</div></div>
 
   <!-- Phaser 3 (só para desenho e som; a física é própria: js/physics.js) -->
-  <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
+  <script src="js/vendor/phaser.min.js"></script>
 
   <!-- Configuração e utilitários -->
   <script src="js/config.js"></script>

@@ -1,7 +1,7 @@
 /* Uai Ball – Service Worker
    Rede primeiro (pega atualizações do GitHub Pages), cache se estiver offline.
    Troque CACHE ao publicar mudanças grandes. */
-const CACHE = 'uaiball-v9';
+const CACHE = 'uaiball-v10';
 const SHELL = [
   './', './index.html', './style.css', './main.js', './manifest.json',
   './js/config.js', './js/physics.js', './js/services.js', './js/lights.js', './js/progress.js',
@@ -12,7 +12,7 @@ const SHELL = [
   './scenes/GameOverScene.js', './scenes/RankingScene.js',
   './assets/logo.png', './assets/mesa.png', './assets/flipper.png', './assets/flipper2.png',
   './assets/bumper.png', './assets/ball.png',
-  'https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js'
+  './js/vendor/phaser.min.js', './assets/fonts/rye.woff2', './assets/fonts/bungee.woff2'
 ];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => Promise.allSettled(SHELL.map(u => c.add(u)))).then(() => self.skipWaiting()));

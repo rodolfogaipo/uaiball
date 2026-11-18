@@ -1,3 +1,7 @@
+/* fontes locais (sem internet também) */
+@font-face { font-family: 'Rye'; src: url('assets/fonts/rye.woff2') format('woff2'); font-display: swap; }
+@font-face { font-family: 'Bungee'; src: url('assets/fonts/bungee.woff2') format('woff2'); font-display: swap; }
+
 /* ============================================================
    UAI BALL – estilos da página
    - Celular: jogo ocupa a tela toda em modo retrato
@@ -160,3 +164,13 @@ kbd {
 @media (orientation: landscape) and (max-height: 520px) and (pointer: coarse) {
   #rotate { display: flex; }
 }
+
+
+/* aviso rápido (toast) – ex.: "aperte voltar de novo para sair" */
+#toast { position: fixed; left: 50%; bottom: 8%; transform: translateX(-50%); background: rgba(20,10,4,.92);
+  color: #ffe7b8; border: 2px solid #c9973f; border-radius: 22px; padding: 10px 20px; font: 16px Georgia, serif;
+  opacity: 0; transition: opacity .25s; pointer-events: none; z-index: 50; }
+#toast.show { opacity: 1; }
+/* no app (APK) não tem barra lateral nem seleção de texto */
+html.native .side { display: none !important; }
+html.native, html.native body { -webkit-touch-callout: none; }
