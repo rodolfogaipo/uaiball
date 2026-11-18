@@ -12,8 +12,9 @@ UAI.thumb = function (scene, def) {
 };
 
 /** fundo de madeira com luzes de vitrine em volta (usado em várias telas) */
-UAI.menuBackdrop = function (scene, dark = 0.62, texKey = 'mesa') {
+UAI.menuBackdrop = function (scene, dark = 0.62, texKey) {
   const W = UAI.CONFIG.WIDTH, H = UAI.CONFIG.HEIGHT;
+  if (!texKey) texKey = 'mesa';
   scene.add.image(W / 2, H / 2, texKey).setDisplaySize(W, H);
   scene.add.rectangle(W / 2, H / 2, W, H, 0x0b0603, dark);
   scene.lights = new UAI.LightRig(scene);

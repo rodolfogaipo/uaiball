@@ -1,12 +1,12 @@
 /* Uai Ball – Service Worker
    Rede primeiro (pega atualizações do GitHub Pages), cache se estiver offline.
    Troque CACHE ao publicar mudanças grandes. */
-const CACHE = 'uaiball-v5';
+const CACHE = 'uaiball-v9';
 const SHELL = [
   './', './index.html', './style.css', './main.js', './manifest.json',
   './js/config.js', './js/physics.js', './js/services.js', './js/lights.js', './js/progress.js',
   './js/tables/kit.js', './js/tables/t01_uaiball.js', './js/tables/t02_t06.js', './js/tables/t07_t11.js',
-  './js/render/tableArt.js',
+  './js/render/tableArt.js', './js/render/parts.js',
   './scenes/BootScene.js', './scenes/MenuScene.js', './scenes/TableSelectScene.js', './scenes/ProfileScene.js',
   './scenes/GameScene.js', './scenes/GameRules.js', './scenes/GameEditor.js',
   './scenes/GameOverScene.js', './scenes/RankingScene.js',

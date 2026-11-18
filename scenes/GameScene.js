@@ -49,6 +49,7 @@ class GameScene extends Phaser.Scene {
     this.tableKey = this.ensureArt();
     this.tableImg = this.add.image(this.W / 2, this.H / 2, this.tableKey).setDisplaySize(this.W, this.H).setDepth(0);
     this.ambient = this.add.rectangle(this.W / 2, this.H / 2, this.W, this.H, 0x000000, this.def.art ? 0.36 : 0.2).setDepth(1);
+    this.parts = UAI.Parts.ensure(this, this.def);      // bumpers 3D e brilhos (estilo Space Cadet)
     this.lights = new UAI.LightRig(this);
     this.plungerGfx = this.add.graphics().setDepth(6);
     this.dynGfx = this.add.graphics().setDepth(4.6);
@@ -64,8 +65,65 @@ class GameScene extends Phaser.Scene {
     this.createInput();
     this.debugGfx = this.add.graphics().setDepth(60);
 
+    this.buildDecorAnim();
     this.newBall(true);
     if (/[?&]editor=1/.test(location.search)) this.toggleEditor();
+  }
+
+  /** DETALHES VIVOS: engrenagens girando, balão flutuando, estrelas piscando,
+      fogueira tremendo, fumaça do trem e do café, brilho na água, reflexo do vidro */
+  buildDecorAnim() {
+    if (this.def.art) return;
+    const TA = UAI.TableArt, icons = (this.layout.decor && this.layout.decor.icons) || [];
+    this.decorFx = [];
+    icons.forEach(([nm, x, y, sz = 70, rot = 0], i) => {
+      const kind = TA.ANIM[nm];
+      if (!kind) return;
+      const size = sz >= 44 ? sz * 1.25 : sz * 1.1;
+      if (TA.SPRITE_ANIM[kind]) {
+        const key = 'ico_' + this.def.id + '_' + i;
+        if (!this.textures.exists(key)) UAI.Tex.add(this, key, TA.iconCanvas(this.def, nm, size));
+        const img = this.add.image(x, y, key).setDepth(0.6).setRotation(rot);
+        if (kind === 'spin') this.tweens.add({ targets: img, angle: '+=360', duration: nm === 'sun' ? 30000 : 9000, repeat: -1 });
+        if (kind === 'float') this.tweens.add({ targets: img, y: y - 7, angle: { from: -3, to: 3 }, duration: 1900 + i * 170, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
+        if (kind === 'twinkle') {
+          this.tweens.add({ targets: img, scale: { from: 0.94, to: 1.06 }, duration: 900 + i * 120, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
+          const glint = this.add.image(x + size * 0.18, y - size * 0.22, 'glow').setBlendMode(Phaser.BlendModes.ADD).setTint(0xffffff).setDepth(1.2).setDisplaySize(size * 0.5, size * 0.5).setAlpha(0);
+          this.tweens.add({ targets: glint, alpha: { from: 0, to: 0.9 }, duration: 220, yoyo: true, repeat: -1, repeatDelay: 1800 + i * 400 });
+        }
+        return;
+      }
+      if (kind === 'flicker') {
+        const g = this.add.image(x, y - size * 0.1, 'glow').setBlendMode(Phaser.BlendModes.ADD).setTint(0xff8a2a).setDepth(1.2).setDisplaySize(size * 1.8, size * 1.8).setAlpha(0.35);
+        this.decorFx.push({ kind, g, base: 0.35 });
+      } else if (kind === 'smoke') {
+        this.decorFx.push({ kind, x: x + (nm === 'train' ? -size * 0.2 : 0), y: y - size * 0.45, size, next: 0 });
+      } else if (kind === 'shimmer') {
+        this.decorFx.push({ kind, x, y, size, next: 0 });
+      }
+    });
+    // reflexo do vidro passando de vez em quando
+    this.glass = this.add.image(-300, this.H / 2, 'glow').setBlendMode(Phaser.BlendModes.ADD).setTint(0xfff4e0)
+      .setDisplaySize(160, this.H * 1.6).setRotation(0.35).setDepth(19).setAlpha(0.07);
+    this.tweens.add({ targets: this.glass, x: this.W + 300, duration: 2600, repeat: -1, repeatDelay: 7000, ease: 'Sine.inOut' });
+  }
+
+  stepDecorAnim(dt, t) {
+    (this.decorFx || []).forEach(F => {
+      if (F.kind === 'flicker') F.g.setAlpha(F.base + Math.random() * 0.18 + 0.08 * Math.sin(t / 90));
+      else if (t >= F.next) {
+        if (F.kind === 'smoke') {
+          F.next = t + 380 + Math.random() * 300;
+          const p = this.add.image(F.x, F.y, 'glow').setTint(0xe8e2d6).setDepth(1.25).setAlpha(0.45).setDisplaySize(F.size * 0.22, F.size * 0.22);
+          this.tweens.add({ targets: p, y: F.y - F.size * 0.9, x: F.x + (Math.random() - 0.3) * F.size * 0.5, alpha: 0, displayWidth: F.size * 0.8, displayHeight: F.size * 0.8, duration: 2200, onComplete: () => p.destroy() });
+        } else {
+          F.next = t + 250 + Math.random() * 400;
+          const p = this.add.image(F.x + (Math.random() - 0.5) * F.size, F.y + (Math.random() - 0.5) * F.size * 0.6, 'glow')
+            .setBlendMode(Phaser.BlendModes.ADD).setTint(0xbff4ff).setDepth(1.25).setDisplaySize(10, 10).setAlpha(0);
+          this.tweens.add({ targets: p, alpha: 0.9, displayWidth: 22, displayHeight: 6, duration: 300, yoyo: true, onComplete: () => p.destroy() });
+        }
+      }
+    });
   }
 
   /** arte da mesa: imagem (mesa 1) ou desenhada pelo jogo a partir dos dados */
@@ -76,7 +134,7 @@ class GameScene extends Phaser.Scene {
     const key = 'table_' + def.id + (edited ? '_ed' : '');
     if (!this.textures.exists(key) || edited) {
       const d = edited ? Object.assign({}, def, { layout: this.layout }) : def;
-      UAI.Tex.add(this, key, UAI.TableArt.render(d, 1));
+      UAI.Tex.add(this, key, UAI.TableArt.render(d, 1, { skipAnim: true }));   // os ícones que se mexem viram sprites
       const rc = UAI.TableArt.renderRamps(d, 1);
       if (rc) UAI.Tex.add(this, key + '_ramps', rc);
     }
@@ -99,6 +157,7 @@ class GameScene extends Phaser.Scene {
     this.stats = { shots: 0, ramps: 0, holes: 0, multiballs: 0, jackpots: 0, superJackpots: 0, skillShots: 0, maxCombo: 0, extraBalls: 0, drops: 0, lanes: 0, tilts: 0 };
     this.tiltLevel = 0; this.tilted = false; this.lastNudge = -1e9;
     this.combo = 0; this.lastShotAt = -1e9;
+    this.bumperLevel = 0; this.bumperUpAt = 0;
     this.party = 0; this.saveUntil = 0;
     this.autoQueue = 0; this.nextAutoAt = 0;
     this.kickbackLit = {};
@@ -138,6 +197,15 @@ class GameScene extends Phaser.Scene {
     this.lights.clear();
     const smooth = !!this.def.art;          // mesa desenhada à mão: curvas suavizadas
 
+    // peças modernas geradas para a mesa (bumper e palhetas no estilo da arte)
+    this.bumperKey = 'bumper'; this.flipKeys = null;
+    if (false) {
+      const id = this.def.id;
+      if (!this.textures.exists('bumperM_' + id)) UAI.Tex.add(this, 'bumperM_' + id, UAI.TableArt.bumperCanvas(this.def));
+      if (!this.textures.exists('flipM_' + id)) { UAI.Tex.add(this, 'flipM_' + id, UAI.TableArt.flipperCanvas(this.def, false)); UAI.Tex.add(this, 'flipM2_' + id, UAI.TableArt.flipperCanvas(this.def, true)); }
+      this.bumperKey = 'bumperM_' + id; this.flipKeys = ['flipM_' + id, 'flipM2_' + id];
+    }
+
     // paredes, portões, blocos, postes
     L.walls.forEach(w => {
       const mat = w.mat === 'rubber' ? P.rubber : P.wall;
@@ -156,13 +224,13 @@ class GameScene extends Phaser.Scene {
       let phys;
       if (kind === 'bumper') { phys = W.addCircle(b.x, b.y, b.r, P.bumper, 'bumper'); phys.data = i; }
       else phys = W.addSensor(b.x, b.y, kind === 'target' ? b.r + 4 : b.r, kind === 'target' ? 'btarget' : kind, i);
-      const disp = 2 * (b.vr || b.r / P.bumper.spriteRatio), persp = P.bumper.perspective;
+      const disp = 2 * (b.vr || b.r / P.bumper.spriteRatio), persp = this.def.art ? P.bumper.perspective : 1;
       const hidden = kind === 'shock';
       const halo = this.add.image(b.x, b.y, 'glow').setBlendMode(Phaser.BlendModes.ADD)
         .setTint(kind === 'bumper' ? (this.def.theme && this.def.theme.bumperGlow) || 0xff9a30 : 0xff9a30)
         .setDisplaySize(disp * 1.6, disp * 1.6 * persp).setDepth(4).setAlpha(0.25).setVisible(!hidden);
       const holder = this.add.container(b.x, b.y).setDepth(5).setScale(1, persp);
-      const spr = hidden ? null : this.add.image(0, 0, 'bumper').setDisplaySize(disp, disp);
+      const spr = hidden ? null : this.add.image(0, 0, kind === 'wheel' ? 'bumper' : this.parts.keys[this.bumperLevel || 0][0]).setDisplaySize(disp * (kind === 'wheel' ? 1 : 1.04), disp * (kind === 'wheel' ? 1 : 1.04));
       if (spr) holder.add(spr);
       const cap = this.add.image(b.x, b.y, 'glow').setBlendMode(Phaser.BlendModes.ADD)
         .setTint(0xfff0c8).setDisplaySize(disp * 0.9, disp * 0.9 * persp).setDepth(6).setAlpha(0);
@@ -321,6 +389,7 @@ class GameScene extends Phaser.Scene {
     });
     let key = 'flipper', flip = false;
     if (F.side === 'R') { if (this.textures.exists('flipper2')) key = 'flipper2'; else flip = true; }
+    if (this.flipKeys) { key = this.flipKeys[F.side === 'R' ? 1 : 0]; flip = false; }
     const src = this.textures.get(key).getSourceImage();
     const w = src.width, h = src.height;
     const k = len / Math.max(1, w - h);
@@ -391,6 +460,7 @@ class GameScene extends Phaser.Scene {
     this.skillLamp = 4 + Math.floor(Math.random() * 4);
     if (first) (this.layout.outlanes || []).forEach(O => { if (O.kickback && O.kickback.litAtStart) this.kickbackLit[O.id] = true; });
     this.addLaneBall(false);
+    this.lights.show(this.lights.list, 'random', 900);
     const n = this.ballNo;
     this.banner('BOLA ' + n, this.sys.game.device.input.touch ? 'Arraste p/ cima no canto direito' : 'Segure ↓ e solte na luz VERDE', '#ffe7b8');
     this.updateHUD();
@@ -422,6 +492,7 @@ class GameScene extends Phaser.Scene {
     this.logic(dt);
     this.syncVisuals(dt);
     this.updateLights(dt, time);
+    this.stepDecorAnim(dt, time);
     if (this.debugOn) this.drawDebug();
   }
 
@@ -440,6 +511,7 @@ class GameScene extends Phaser.Scene {
     }
     this.checkBalls(dt);
     if (this.tiltLevel > 0) this.tiltLevel = Math.max(0, this.tiltLevel - dt / 3500);
+    if (this.bumperLevel > 0 && this.now - this.bumperUpAt > 60000) { this.bumperLevel--; this.bumperUpAt = this.now; this.updateHUD(); }
     // alvos que caem voltam a subir
     this.dropBanks.forEach(B => { if (B.resetAt && this.now >= B.resetAt) this.resetDropBank(B); });
     this.spinners.forEach(S => { S.rate *= Math.pow(0.1, dt / 1000); });
@@ -522,6 +594,7 @@ class GameScene extends Phaser.Scene {
     this.lives--;
     this.betweenBalls = true;
     UAI.Sfx.drain();
+    this.lights.show(this.lights.list.slice().sort((a, b) => b.y - a.y), 'off', 900);
     this.lights.giTarget = 0.08;
     this.ambient.setAlpha(0.55);
     if (this.drainLamp) this.drainLamp.flash = 1.3;
@@ -602,6 +675,8 @@ class GameScene extends Phaser.Scene {
   /** desenha alvos que caem e alvos fixos (muda só quando acertam) */
   redrawDyn() {
     const g = this.dynGfx; g.clear();
+    const MM = { accent: '#e8a040', gold: '#ffe066' };
+    const ACC = parseInt(MM.accent.slice(1), 16), GLD = parseInt(MM.gold.slice(1), 16);
     (this.dynTexts || []).forEach(t => t.destroy());
     this.dynTexts = [];
     const txt = (x, y, s, col) => this.dynTexts.push(this.add.text(x, y, s, {
@@ -611,15 +686,15 @@ class GameScene extends Phaser.Scene {
       const [x0, y0, x1, y1] = T.pts, mx = (x0 + x1) / 2, my = (y0 + y1) / 2;
       if (T.down) { g.lineStyle(4, 0x1a0b04, 0.8).lineBetween(x0, y0, x1, y1); return; }
       g.lineStyle(14, 0x1a0b04, 0.6).lineBetween(x0 + 4, y0 + 6, x1 + 4, y1 + 6);
-      g.lineStyle(11, 0xe8a040, 1).lineBetween(x0, y0, x1, y1);
+      g.lineStyle(11, ACC, 1).lineBetween(x0, y0, x1, y1);
       g.lineStyle(3, 0xfff0c0, 0.7).lineBetween(x0, y0 - 3, x1, y1 - 3);
       if (B.letters[i]) txt(mx, my - 16, B.letters[i], '#ffe7b8');
     }));
     this.targetGroups.forEach(G => G.targets.forEach((T, i) => {
       const [[x0, y0], [x1, y1]] = T.pts, mx = (x0 + x1) / 2, my = (y0 + y1) / 2;
       g.lineStyle(14, 0x1a0b04, 0.6).lineBetween(x0 + 3, y0 + 5, x1 + 3, y1 + 5);
-      g.lineStyle(11, T.lit ? 0xffe066 : 0xb04090, 1).lineBetween(x0, y0, x1, y1);
-      if (G.letters[i]) txt(mx - (x0 === x1 ? 20 : 0), my - (x0 === x1 ? 0 : 18), G.letters[i], T.lit ? '#ffe066' : '#ffd0f0');
+      g.lineStyle(11, T.lit ? GLD : ACC, 1).lineBetween(x0, y0, x1, y1);
+      if (G.letters[i]) txt(mx - (x0 === x1 ? 20 : 0), my - (x0 === x1 ? 0 : 18), G.letters[i], T.lit ? '#fff2c8' : '#f3e6c8');
     }));
   }
 
@@ -714,7 +789,11 @@ class GameScene extends Phaser.Scene {
       B.halo.setAlpha((0.22 + 0.08 * Math.sin(t / 420 + B.phase) + B.flash * 0.8) * this.lights.gi);
       B.cap.setAlpha(B.flash * 0.9 * this.lights.gi);
       B.spinBoost = Math.max(0, (B.spinBoost || 0) - dt * 0.00002);
-      if (B.spr) B.spr.rotation += B.spin * dt * (0.00025 + B.flash * 0.004 + (B.spinBoost || 0));
+      if (B.spr && B.kind === 'wheel') B.spr.rotation += B.spin * dt * (0.00025 + B.flash * 0.004 + (B.spinBoost || 0));
+      if (B.spr && B.kind !== 'wheel') {
+        const lit = this.now < (B.litUntil || 0), key = this.parts.keys[this.bumperLevel][lit ? 1 : 0];
+        if (B.spr.texture.key !== key) B.spr.setTexture(key);
+      }
     });
     this.flippers.forEach(f => {
       const target = f.phys.pressed ? 0.55 : 0;
@@ -806,6 +885,7 @@ class GameScene extends Phaser.Scene {
     const needed = this.rules.locksNeeded;
     const parts = ['BOLA ' + this.ballNo];
     if (this.bonusX > 1) parts.push('BÔNUS ' + this.bonusX + 'x');
+    if (this.bumperLevel > 0) parts.push('BUMPERS N' + (this.bumperLevel + 1));
     if (this.multiball) parts.push('MULTIBOLA · JACKPOT ' + UAI.fmt(this.jackpotValue));
     else if (this.rules.lockHoles.length) parts.push('TRAVAS ' + this.locks + '/' + needed + (this.lockNeedsLit ? (this.lockLit > 0 ? ' ●' : ' ○') : ''));
     this.statusTxt.setText(parts.join('  ·  '));

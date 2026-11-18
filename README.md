@@ -17,12 +17,13 @@ js/config.js          ← Firebase, física comum, dificuldades, pontos
 js/physics.js         ← motor de física de pinball (várias bolas)
 js/progress.js        ← carreira: XP, níveis, estrelas, desbloqueio, conquistas, desafio do dia
 js/services.js        ← sons, ranking por mesa, armazenamento, botões
-js/lights.js          ← sistema de luzes
+js/lights.js          ← luzes (lâmpadas com brilho em estrela, pisca-pisca e shows de luz – estilo Space Cadet)
+js/render/parts.js    ← bumpers 3D com 4 níveis (apagado/aceso), onda de choque, faíscas
 js/tables/kit.js      ← "esqueleto" e peças para montar mesas
 js/tables/t01_uaiball.js   ← mesa 1 (reconstruída da arte original: tudo o que aparece funciona)
 js/tables/t02_t06.js  ← mesas 2 a 6
 js/tables/t07_t11.js  ← mesas 7 a 11
-js/render/tableArt.js ← desenha as mesas 2–11 (madeira, trilhos, latão, gravuras)
+js/render/tableArt.js ← desenha as 11 mesas (arte pintada, insertos, metais, verniz)
 scenes/               ← Boot, Menu, TableSelect, Profile, Game (+GameRules, GameEditor), GameOver, Ranking
 assets/               ← logo, mesa, flipper (+flipper2), bumper, ball, ícones
 ```

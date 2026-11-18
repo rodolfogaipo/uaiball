@@ -31,6 +31,8 @@ class BootScene extends Phaser.Scene {
 
   create() {
     UAI.Tex.glow(this);
+    UAI.Tex.add(this, 'flare', UAI.Parts.flare());
+    UAI.Tex.add(this, 'ringfx', UAI.Parts.ring());
     UAI.Tex.fallbacks(this);   // gera desenhos simples se algum PNG faltar
     const real = this.missing.filter(k => k !== 'flipper2');
     if (real.length) console.warn('[Uai Ball] Imagens não encontradas em /assets:', real.join(', '));

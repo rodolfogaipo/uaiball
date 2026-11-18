@@ -148,8 +148,8 @@
       path: [[620, 420], [516, 230], [320, 236], [170, 360], [126, 640], [128, 800]], exitVel: [0, 450], points: 2000, jackpot: true });
     K.saucer(L, 'estacaoEspacial', 418, 420, [90, 700], { label: 'ESTAÇÃO', lock: true });
     L.decor = {
-      icons: [['rocket', 418, 640, 90], ['planet', 280, 470, 50], ['moon', 560, 470, 40], ['star', 220, 220, 26], ['star', 616, 220, 26], ['gear', 418, 330, 40]],
-      texts: [{ text: 'AVANÇO', x: 418, y: 730, size: 56, title: true }, { text: 'TECNOLÓGICO', x: 418, y: 772, size: 26, title: true }]
+      icons: [['rocket', 418, 584, 70], ['planet', 280, 470, 50], ['moon', 560, 470, 40], ['star', 220, 220, 26], ['star', 616, 220, 26], ['gear', 418, 330, 40]],
+      texts: [{ text: 'AVANÇO TECNOLÓGICO', x: 418, y: 655, size: 50, title: true }]
     };
     K.add({
       id: 'avanco', order: 11, name: 'Avanço Tecnológico', subtitle: 'A mais difícil · sem kickback',

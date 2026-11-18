@@ -1,24 +1,55 @@
 /* ============================================================
-   UAI BALL – DESENHISTA DE MESAS (madeira pirogravada + latão)
+   UAI BALL – DESENHISTA DE MESAS  (versão 2: arte de fliperama)
    ------------------------------------------------------------
-   Gera a arte da mesa a partir dos MESMOS dados da física:
-   • madeira com veios (ruído) nas cores do tema
-   • moldura do gabinete, corredor do lançador, avental
-   • trilhos de madeira com sombra, brilho e parafusos de latão
-   • estilingues, postes, buracos, insertos de luz
-   • gravuras pirogravadas (ícones do tema) e título incrustado
-   • rampas de arame numa camada separada (passa por cima da bola)
+   Como uma mesa de fliperama de verdade é feita (Jersey Jack /
+   Stern, "Creating the playfield"): madeira → arte pintada →
+   insertos de acrílico que acendem → verniz por cima → peças
+   (plásticos, metais, borrachas) por cima de tudo.
+   Aqui é igual, em camadas, a partir dos MESMOS dados da física:
+    1. gabinete e madeira com veios (identidade rústica mineira)
+    2. pintura do cenário de cada mesa (céu, serra, casario...) com
+       contorno de nanquim e retícula, deixando o veio aparecer
+    3. sol/raios atrás do título, faixas pintadas nas bordas
+    4. insertos de luz: acrílico colorido com brilho e rótulos
+       (as luzes do jogo acendem em cima deles)
+    5. trilhos de madeira com filete de latão, guias cromadas,
+       postes com borracha, estilingues de plástico colorido
+    6. buracos com aro cromado, placas com nome, avental de metal
+    7. verniz: brilho diagonal, luz quente vinda de cima, vinheta
+   Ícones que se mexem no jogo (engrenagem, sol, balão, estrela...)
+   saem num desenho separado (iconCanvas) para a cena animar.
    ============================================================ */
 window.UAI = window.UAI || {};
 
 UAI.TableArt = {
+  /* ---------- direção de arte de cada mesa (paleta + cenário) ---------- */
+  ART: {
+    uaiball:     { paint: ['#1c0d05', '#e8892e', '#f2c14e', '#2e6b7a', '#b5322a'], sky: ['#f6d58a', '#e98a3a'], hills: ['#8a4a22', '#5e2e12'], skyline: ['church', 'house', 'tree', 'church', 'house'], sun: [600, 250] },
+    cozinha:     { paint: ['#1e0e06', '#d9542b', '#f4c35a', '#5b8c3a', '#8a3b1f'], sky: ['#fde7b4', '#f3a65a'], hills: ['#9a6a3a', '#6b3d1c'], skyline: ['house', 'tree', 'house', 'tree'], sun: [610, 240] },
+    mariafumaca: { paint: ['#160b06', '#c24a2c', '#e9b44c', '#3f5c7a', '#6b2f1a'], sky: ['#f2b56b', '#8a4a6a'], hills: ['#5a3a4a', '#3a2028'], skyline: ['church', 'tree', 'house', 'tree', 'church'], sun: [240, 260] },
+    ouropreto:   { paint: ['#1a0c04', '#d4a017', '#f7e08a', '#7a2e1e', '#2f4a5a'], sky: ['#fbe7a0', '#e7a33a'], hills: ['#7a4a1e', '#4e2a10'], skyline: ['church', 'house', 'church', 'house', 'church'], sun: [418, 230] },
+    canastra:    { paint: ['#10140c', '#3d8fc6', '#f2d16b', '#4d8a3a', '#a65a2a'], sky: ['#cfeefa', '#7cc2e8'], hills: ['#5f8a3a', '#3a5e24'], skyline: ['tree', 'tree', 'cow', 'tree'], sun: [230, 240] },
+    mineirao:    { paint: ['#06100a', '#2f9e44', '#f5f5f5', '#1f4fa0', '#e8c13a'], sky: ['#0c1a3a', '#24508a'], hills: ['#1f3a2a', '#0f2418'], skyline: ['flags', 'flags'], sun: [620, 230], night: true },
+    arraia:      { paint: ['#140806', '#e8452c', '#f6c945', '#2f7fbf', '#4caf50'], sky: ['#141a3e', '#4a2a5a'], hills: ['#3a2040', '#22122a'], skyline: ['house', 'tree', 'house'], sun: [250, 240], night: true },
+    diamantina:  { paint: ['#080a14', '#5fd0f0', '#e8f6ff', '#6a3fa0', '#d9a441'], sky: ['#0a1030', '#2a3a7a'], hills: ['#2a2a4a', '#161630'], skyline: ['house', 'church', 'house', 'house', 'church'], sun: [610, 230], night: true },
+    capitolio:   { paint: ['#08120f', '#1fb3c9', '#f3d27a', '#7a4a2a', '#2e7d4f'], sky: ['#d6f4ff', '#6cc6e6'], hills: ['#a0603a', '#6e3a1e'], skyline: ['tree', 'tree', 'tree'], sun: [610, 240] },
+    inhotim:     { paint: ['#120a10', '#e0408f', '#ffd23f', '#2fb37a', '#3a5fd9'], sky: ['#ffe3f0', '#9ed8c8'], hills: ['#3f8a5a', '#24603a'], skyline: ['tree', 'sculpture', 'tree', 'tree'], sun: [230, 240] },
+    avanco:      { paint: ['#04050c', '#7a8aff', '#9ff0ff', '#ff5fa8', '#ffd24a'], sky: ['#02030a', '#1a1f4a'], hills: ['#2a2f6a', '#141838'], skyline: [], sun: [610, 230], night: true, space: true }
+  },
+
+  /* ícones que a cena anima (o resto fica pintado na mesa) */
+  ANIM: { gear: 'spin', sun: 'spin', star: 'twinkle', diamond: 'twinkle', balloon: 'float', rocket: 'float', moon: 'float', planet: 'float',
+          bonfire: 'flicker', lantern: 'flicker', train: 'smoke', coffee: 'smoke', waterfall: 'shimmer', waves: 'shimmer' },
+  SPRITE_ANIM: { spin: 1, twinkle: 1, float: 1 },
+
   /* ---------- utilidades ---------- */
   rng(seed) { let s = seed >>> 0 || 1; return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296); },
   hashStr(s) { let h = 2166136261; for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619); return h >>> 0; },
   hex(c) { const n = parseInt(c.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; },
   mix(a, b, t) { return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t]; },
+  rgb(c, a = 1) { return 'rgba(' + c.map(Math.round).join(',') + ',' + a + ')'; },
+  shade(hex, t, a = 1) { const c = this.hex(hex); return this.rgb(t >= 0 ? this.mix(c, [255, 255, 255], t) : this.mix(c, [0, 0, 0], -t), a); },
 
-  /** ruído de valor 2D suave */
   makeNoise(seed) {
     const r = this.rng(seed), P = new Float32Array(512 * 512);
     for (let i = 0; i < P.length; i++) P[i] = r();
@@ -31,7 +62,7 @@ UAI.TableArt = {
     };
   },
 
-  /** Textura de madeira (veios verticais) num canvas w×h */
+  /** Madeira com veios (tábuas verticais) */
   woodCanvas(w, h, dark, light, seed, scale = 1, grain = 1) {
     const c = document.createElement('canvas'); c.width = w; c.height = h;
     const x = c.getContext('2d'), img = x.createImageData(w, h), D = img.data;
@@ -62,60 +93,102 @@ UAI.TableArt = {
 
   screw(ctx, x, y, r = 4.5, metal = '#d9a441') {
     const g = ctx.createRadialGradient(x - r * 0.4, y - r * 0.4, 0.5, x, y, r);
-    g.addColorStop(0, '#fff3c4'); g.addColorStop(0.45, metal); g.addColorStop(1, '#4a3010');
+    g.addColorStop(0, '#fff7d8'); g.addColorStop(0.45, metal); g.addColorStop(1, '#3a2408');
     ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
-    ctx.strokeStyle = 'rgba(40,20,5,.8)'; ctx.lineWidth = 1.2;
+    ctx.strokeStyle = 'rgba(30,15,4,.85)'; ctx.lineWidth = Math.max(1, r * 0.25);
     ctx.beginPath(); ctx.moveTo(x - r * 0.6, y - r * 0.2); ctx.lineTo(x + r * 0.6, y + r * 0.2); ctx.stroke();
   },
 
-  /** trilho de madeira ao longo de uma linha (largura 2t) */
+  /** aço cromado: traço com degradê claro/escuro (guias, aros) */
+  chromeStroke(ctx, w) {
+    ctx.lineWidth = w + 2; ctx.strokeStyle = '#1a1c20'; ctx.stroke();
+    ctx.lineWidth = w; ctx.strokeStyle = '#8d939c'; ctx.stroke();
+    ctx.lineWidth = Math.max(1, w * 0.45); ctx.strokeStyle = '#dfe4ea'; ctx.stroke();
+    ctx.lineWidth = Math.max(0.8, w * 0.15); ctx.strokeStyle = '#ffffff'; ctx.stroke();
+  },
+
+  /** trilho de madeira envernizada com filete de latão no meio */
   rail(ctx, pts, t, th, pattern, opts = {}) {
     if (pts.length < 2) return;
     ctx.save();
     ctx.lineJoin = 'round'; ctx.lineCap = 'round';
-    // sombra
-    ctx.shadowColor = 'rgba(0,0,0,.65)'; ctx.shadowBlur = 10; ctx.shadowOffsetX = 5; ctx.shadowOffsetY = 7;
-    this.pathPts(ctx, pts); ctx.strokeStyle = th.railDark; ctx.lineWidth = t * 2 + 2; ctx.stroke();
+    ctx.shadowColor = 'rgba(0,0,0,.6)'; ctx.shadowBlur = 12; ctx.shadowOffsetX = 6; ctx.shadowOffsetY = 9;
+    this.pathPts(ctx, pts); ctx.strokeStyle = th.railDark; ctx.lineWidth = t * 2 + 3; ctx.stroke();
     ctx.shadowColor = 'transparent';
-    // corpo com veio
-    this.pathPts(ctx, pts); ctx.strokeStyle = pattern || th.rail; ctx.lineWidth = t * 2 - 2; ctx.stroke();
-    // brilho superior
-    ctx.translate(-1.2, -1.6);
-    this.pathPts(ctx, pts); ctx.strokeStyle = 'rgba(255,236,200,.28)'; ctx.lineWidth = Math.max(1.5, t * 0.45); ctx.stroke();
+    this.pathPts(ctx, pts); ctx.strokeStyle = pattern || th.rail; ctx.lineWidth = t * 2 - 1; ctx.stroke();
+    // verniz: brilho de cima e sombra de baixo
+    ctx.save(); ctx.translate(-1.4, -1.8);
+    this.pathPts(ctx, pts); ctx.strokeStyle = 'rgba(255,240,210,.32)'; ctx.lineWidth = Math.max(1.5, t * 0.5); ctx.stroke();
     ctx.restore();
-    // parafusos
+    ctx.save(); ctx.translate(1.6, 2.2);
+    this.pathPts(ctx, pts); ctx.strokeStyle = 'rgba(20,8,2,.35)'; ctx.lineWidth = Math.max(1.5, t * 0.45); ctx.stroke();
+    ctx.restore();
+    if (opts.inlay !== false && t >= 6) {
+      this.pathPts(ctx, pts); ctx.strokeStyle = 'rgba(40,20,4,.6)'; ctx.lineWidth = 2.6; ctx.stroke();
+      this.pathPts(ctx, pts); ctx.strokeStyle = th.metal; ctx.lineWidth = 1.4; ctx.stroke();
+    }
+    ctx.restore();
     if (opts.screws !== false && t >= 6) {
-      let acc = 60;
+      let acc = 50;
       for (let i = 0; i < pts.length - 1; i++) {
         const [x1, y1] = pts[i], [x2, y2] = pts[i + 1], L = Math.hypot(x2 - x1, y2 - y1);
-        while (acc < L) { const k = acc / L; this.screw(ctx, x1 + (x2 - x1) * k, y1 + (y2 - y1) * k, 3.4, th.metal); acc += 150; }
+        while (acc < L) { const k = acc / L; this.screw(ctx, x1 + (x2 - x1) * k, y1 + (y2 - y1) * k, 3.2, th.metal); acc += 140; }
         acc -= L;
       }
     }
   },
 
-  post(ctx, x, y, r, th) {
+  /** poste: borracha branca em volta de um pino de plástico colorido */
+  post(ctx, x, y, r, th, color) {
     ctx.save();
-    ctx.shadowColor = 'rgba(0,0,0,.6)'; ctx.shadowBlur = 6; ctx.shadowOffsetX = 3; ctx.shadowOffsetY = 4;
-    ctx.fillStyle = '#1b0f08'; ctx.beginPath(); ctx.arc(x, y, r + 3, 0, Math.PI * 2); ctx.fill();
+    ctx.shadowColor = 'rgba(0,0,0,.6)'; ctx.shadowBlur = 6; ctx.shadowOffsetX = 3; ctx.shadowOffsetY = 5;
+    ctx.fillStyle = '#ece8dc'; ctx.beginPath(); ctx.arc(x, y, r + 3.5, 0, Math.PI * 2); ctx.fill();
     ctx.restore();
-    this.screw(ctx, x, y, r, th.metal);
+    ctx.strokeStyle = 'rgba(0,0,0,.35)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(x, y, r + 3.5, 0, Math.PI * 2); ctx.stroke();
+    const g = ctx.createRadialGradient(x - r * 0.4, y - r * 0.5, 0.5, x, y, r);
+    g.addColorStop(0, this.shade(color, 0.6)); g.addColorStop(0.5, color); g.addColorStop(1, this.shade(color, -0.5));
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+    this.screw(ctx, x, y, Math.max(2.2, r * 0.45), '#c8ccd2');
   },
 
-  /** insertos (lâmpadas embutidas): forma escura translúcida que acende com a luz do jogo */
-  insert(ctx, x, y, kind, ang, color, s = 1) {
-    ctx.save(); ctx.translate(x, y); ctx.rotate((ang || 0) * Math.PI / 180); ctx.scale(s, s);
-    ctx.fillStyle = color; ctx.globalAlpha = 0.55;
-    ctx.strokeStyle = 'rgba(30,14,4,.9)'; ctx.lineWidth = 2;
+  /* ---------- insertos (acrílico colorido que acende) ---------- */
+  insertShape(ctx, kind, s) {
     ctx.beginPath();
-    if (kind === 'arrow') { ctx.moveTo(14, 0); ctx.lineTo(-10, -11); ctx.lineTo(-5, 0); ctx.lineTo(-10, 11); ctx.closePath(); }
-    else if (kind === 'tri') { ctx.moveTo(0, -12); ctx.lineTo(11, 9); ctx.lineTo(-11, 9); ctx.closePath(); }
-    else ctx.arc(0, 0, 10, 0, Math.PI * 2);
-    ctx.fill(); ctx.globalAlpha = 1; ctx.stroke();
+    if (kind === 'arrow') { ctx.moveTo(18 * s, 0); ctx.lineTo(-12 * s, -14 * s); ctx.lineTo(-5 * s, 0); ctx.lineTo(-12 * s, 14 * s); ctx.closePath(); }
+    else if (kind === 'tri') { ctx.moveTo(0, -14 * s); ctx.lineTo(13 * s, 10 * s); ctx.lineTo(-13 * s, 10 * s); ctx.closePath(); }
+    else if (kind === 'star') { for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, r = (i % 2 ? 6 : 14) * s; i ? ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r) : ctx.moveTo(Math.cos(a) * r, Math.sin(a) * r); } ctx.closePath(); }
+    else if (kind === 'pill') { const w = 22 * s, h = 10 * s; ctx.moveTo(-w + h, -h); ctx.lineTo(w - h, -h); ctx.arc(w - h, 0, h, -Math.PI / 2, Math.PI / 2); ctx.lineTo(-w + h, h); ctx.arc(-w + h, 0, h, Math.PI / 2, -Math.PI / 2); ctx.closePath(); }
+    else ctx.arc(0, 0, 11 * s, 0, Math.PI * 2);
+  },
+
+  insert(ctx, x, y, kind, ang, color, s = 1, label, ink = '#140a04') {
+    ctx.save(); ctx.translate(x, y); ctx.rotate((ang || 0) * Math.PI / 180);
+    // recorte na madeira (sombra do encaixe)
+    ctx.save(); ctx.scale(1.18, 1.18); this.insertShape(ctx, kind, s); ctx.fillStyle = 'rgba(10,5,2,.85)'; ctx.fill(); ctx.restore();
+    // acrílico
+    this.insertShape(ctx, kind, s);
+    const g = ctx.createRadialGradient(-3 * s, -4 * s, 1, 0, 0, 16 * s);
+    g.addColorStop(0, this.shade(color, 0.55, 0.95)); g.addColorStop(0.45, this.shade(color, 0, 0.9)); g.addColorStop(1, this.shade(color, -0.55, 0.92));
+    ctx.fillStyle = g; ctx.fill();
+    ctx.lineWidth = 1.2; ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.stroke();
+    // brilho do verniz
+    ctx.save(); this.insertShape(ctx, kind, s); ctx.clip();
+    ctx.fillStyle = 'rgba(255,255,255,.38)'; ctx.beginPath(); ctx.ellipse(-4 * s, -6 * s, 9 * s, 4 * s, -0.4, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+    ctx.restore();
+    if (label) this.label(ctx, label, x, y + 22 * s + 6, 11, ink);
+  },
+
+  /** letreiro pequeno pintado (branco com contorno de nanquim) */
+  label(ctx, text, x, y, size = 12, ink = '#140a04', fill = '#fff6e0', rot = 0) {
+    ctx.save(); ctx.translate(x, y); ctx.rotate(rot);
+    ctx.font = `${size}px Bungee, Impact, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.lineJoin = 'round'; ctx.lineWidth = size * 0.42; ctx.strokeStyle = ink; ctx.strokeText(text, 0, 0);
+    ctx.fillStyle = fill; ctx.fillText(text, 0, 0);
     ctx.restore();
   },
 
-  /* ---------- gravuras (pirografia) ---------- */
+  /* ---------- gravuras ---------- */
   icons: {
     church(c) { c.rect(-30, -5, 60, 45); c.moveTo(-30, -5); c.lineTo(0, -28); c.lineTo(30, -5); c.rect(-42, -28, 14, 68); c.rect(28, -28, 14, 68); c.moveTo(-42, -28); c.lineTo(-35, -42); c.lineTo(-28, -28); c.moveTo(28, -28); c.lineTo(35, -42); c.lineTo(42, -28); c.moveTo(0, -28); c.lineTo(0, -44); c.moveTo(-6, -38); c.lineTo(6, -38); c.rect(-8, 18, 16, 22); c.moveTo(-38, -14); c.arc(-35, -14, 3, 0, 7); c.moveTo(38, -14); c.arc(35, -14, 3, 0, 7); },
     coffee(c) { c.moveTo(-26, -10); c.lineTo(-22, 26); c.quadraticCurveTo(0, 34, 22, 26); c.lineTo(26, -10); c.closePath(); c.moveTo(26, -2); c.bezierCurveTo(44, -4, 44, 18, 22, 18); c.moveTo(-40, 32); c.quadraticCurveTo(0, 46, 40, 32); c.moveTo(-10, -18); c.bezierCurveTo(-18, -26, -2, -32, -10, -42); c.moveTo(6, -18); c.bezierCurveTo(-2, -26, 14, -32, 6, -42); },
@@ -151,6 +224,10 @@ UAI.TableArt = {
     lightning(c) { c.moveTo(8, -40); c.lineTo(-16, 4); c.lineTo(2, 4); c.lineTo(-8, 40); c.lineTo(18, -8); c.lineTo(0, -8); c.closePath(); }
   },
 
+  /** ícones feitos só de traços (não dá para pintar por dentro) */
+  LINE_ICONS: { waves: 1, flags: 1, waterfall: 1, sun: 1, pickaxe: 0 },
+
+  /** pirografia (queimado na madeira) – usado nos detalhes pequenos */
   icon(ctx, name, x, y, s, th, rot = 0) {
     const f = this.icons[name]; if (!f) return;
     ctx.save(); ctx.translate(x, y); ctx.rotate(rot); ctx.scale(s / 100, s / 100);
@@ -162,148 +239,428 @@ UAI.TableArt = {
     ctx.restore();
   },
 
-  /** título incrustado (letras de madeira clara com contorno queimado) */
-  title(ctx, text, x, y, size, th, rot = 0) {
-    ctx.save(); ctx.translate(x, y); ctx.rotate(rot);
-    ctx.font = `${size}px Rye, Georgia, serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.shadowColor = 'rgba(0,0,0,.55)'; ctx.shadowBlur = 6; ctx.shadowOffsetX = 3; ctx.shadowOffsetY = 4;
-    ctx.lineWidth = size * 0.16; ctx.strokeStyle = th.burn; ctx.strokeText(text, 0, 0);
-    ctx.shadowColor = 'transparent';
-    const g = ctx.createLinearGradient(0, -size / 2, 0, size / 2);
-    g.addColorStop(0, th.inlay[0]); g.addColorStop(1, th.inlay[1]);
-    ctx.fillStyle = g; ctx.fillText(text, 0, 0);
-    ctx.lineWidth = 1.2; ctx.strokeStyle = 'rgba(255,240,210,.45)'; ctx.strokeText(text, -1, -1);
+  /** ícone PINTADO estilo cartaz: cor chapada com degradê, retícula, contorno de nanquim e brilho */
+  paintIcon(ctx, name, x, y, s, P, rot = 0, colorIdx) {
+    const f = this.icons[name]; if (!f) return;
+    const ink = P[0], base = P[colorIdx != null ? colorIdx : 1 + (this.hashStr(name) % 4)];
+    const k = s / 100, lineOnly = this.LINE_ICONS[name];
+    ctx.save(); ctx.translate(x, y); ctx.rotate(rot); ctx.scale(k, k);
+    ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+    // sombra projetada
+    ctx.save(); ctx.translate(5, 7); ctx.beginPath(); f(ctx);
+    if (!lineOnly) { ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.fill(); }
+    ctx.strokeStyle = 'rgba(0,0,0,.35)'; ctx.lineWidth = 9; ctx.stroke(); ctx.restore();
+    ctx.beginPath(); f(ctx);
+    if (!lineOnly) {
+      const g = ctx.createLinearGradient(-40, -45, 40, 45);
+      g.addColorStop(0, this.shade(base, 0.45)); g.addColorStop(0.55, base); g.addColorStop(1, this.shade(base, -0.35));
+      ctx.fillStyle = g; ctx.fill();
+      // retícula de sombra no canto de baixo
+      ctx.save(); ctx.clip();
+      ctx.fillStyle = 'rgba(0,0,0,.2)';
+      for (let yy = -50; yy < 60; yy += 6) for (let xx = -60; xx < 60; xx += 6) if (xx + yy > 18) { ctx.beginPath(); ctx.arc(xx + (yy % 12 ? 3 : 0), yy, 1.2 + (xx + yy - 18) * 0.012, 0, 7); ctx.fill(); }
+      ctx.restore();
+      ctx.beginPath(); f(ctx);
+      ctx.strokeStyle = ink; ctx.lineWidth = 6.5; ctx.stroke();
+      ctx.save(); ctx.translate(-1.5, -1.8); ctx.beginPath(); f(ctx); ctx.strokeStyle = 'rgba(255,255,255,.4)'; ctx.lineWidth = 1.6; ctx.stroke(); ctx.restore();
+    } else {
+      ctx.strokeStyle = ink; ctx.lineWidth = 11; ctx.stroke();
+      ctx.strokeStyle = base; ctx.lineWidth = 5.5; ctx.stroke();
+      ctx.strokeStyle = 'rgba(255,255,255,.45)'; ctx.lineWidth = 1.5; ctx.stroke();
+    }
     ctx.restore();
   },
 
+  /** ícone animado num canvas próprio (a cena gira/flutua/pisca ele) */
+  iconCanvas(def, name, size) {
+    const P = this.artOf(def).paint, pad = 1.35;
+    const c = document.createElement('canvas'); c.width = c.height = Math.ceil(size * pad * 1.25);
+    const ctx = c.getContext('2d');
+    this.paintIcon(ctx, name, c.width / 2 - 3, c.height / 2 - 4, size, P, 0);
+    return c;
+  },
+
+  artOf(def) {
+    return Object.assign({ paint: ['#1c0d05', '#e8892e', '#f2c14e', '#2e6b7a', '#b5322a'], sky: ['#f6d58a', '#e98a3a'], hills: ['#8a4a22', '#5e2e12'], skyline: [], sun: [600, 240] },
+      this.ART[def.id] || {}, (def.theme && def.theme.art) || {});
+  },
+
+  /** título: letras com volume (extrusão), contorno de nanquim, faixa atrás */
+  title(ctx, text, x, y, size, th, rot = 0, P) {
+    P = P || ['#1c0d05', th.insert, th.inlay[0]];
+    ctx.save(); ctx.translate(x, y); ctx.rotate(rot);
+    ctx.font = `${size}px Rye, Georgia, serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    let w = ctx.measureText(text).width;
+    if (w > 330) { size = Math.floor(size * 330 / w); ctx.font = `${size}px Rye, Georgia, serif`; w = ctx.measureText(text).width; }
+    // faixa (fita) atrás do nome
+    const bw = w / 2 + size * 0.55, bh = size * 0.42;
+    ctx.save();
+    ctx.shadowColor = 'rgba(0,0,0,.5)'; ctx.shadowBlur = 8; ctx.shadowOffsetY = 6;
+    ctx.beginPath();
+    ctx.moveTo(-bw - size * 0.35, -bh * 0.2); ctx.lineTo(-bw, -bh); ctx.lineTo(bw, -bh); ctx.lineTo(bw + size * 0.35, -bh * 0.2);
+    ctx.lineTo(bw + size * 0.15, bh * 0.25); ctx.lineTo(bw + size * 0.35, bh); ctx.lineTo(-bw - size * 0.35, bh); ctx.lineTo(-bw - size * 0.15, bh * 0.25); ctx.closePath();
+    const bg = ctx.createLinearGradient(0, -bh, 0, bh);
+    bg.addColorStop(0, this.shade(P[4] || P[1], 0.15)); bg.addColorStop(1, this.shade(P[4] || P[1], -0.35));
+    ctx.fillStyle = bg; ctx.fill();
+    ctx.restore();
+    ctx.lineWidth = 3; ctx.strokeStyle = P[0]; ctx.stroke();
+    ctx.setLineDash([4, 5]); ctx.lineWidth = 1.5; ctx.strokeStyle = 'rgba(255,230,180,.6)';
+    ctx.beginPath(); ctx.moveTo(-bw + 6, -bh + 6); ctx.lineTo(bw - 6, -bh + 6); ctx.moveTo(-bw + 6, bh - 6); ctx.lineTo(bw - 6, bh - 6); ctx.stroke(); ctx.setLineDash([]);
+    // extrusão (volume)
+    for (let d = 7; d >= 1; d--) { ctx.fillStyle = d > 5 ? 'rgba(0,0,0,.45)' : P[0]; ctx.fillText(text, d * 0.5, d); }
+    ctx.lineJoin = 'round'; ctx.lineWidth = size * 0.14; ctx.strokeStyle = P[0]; ctx.strokeText(text, 0, 0);
+    const g = ctx.createLinearGradient(0, -size / 2, 0, size / 2);
+    g.addColorStop(0, '#fffaf0'); g.addColorStop(0.35, th.inlay[0]); g.addColorStop(0.62, th.inlay[1]); g.addColorStop(1, this.shade(th.inlay[1], -0.25));
+    ctx.fillStyle = g; ctx.fillText(text, 0, 0);
+    ctx.lineWidth = 1.3; ctx.strokeStyle = 'rgba(255,255,255,.6)'; ctx.strokeText(text, -1, -1.5);
+    ctx.restore();
+  },
+
+  /* ---------- pintura do cenário ---------- */
+  paintScene(ctx, def, A, seed) {
+    const W = 896, H = 1200, r = this.rng(seed + 99), N = this.makeNoise(seed + 5);
+    const c = document.createElement('canvas'); c.width = W; c.height = H;
+    const x = c.getContext('2d'), P = A.paint;
+    const top = 70, horizon = A.space ? 560 : 430;
+    // céu
+    const sky = x.createLinearGradient(0, top, 0, horizon + 120);
+    sky.addColorStop(0, A.sky[0]); sky.addColorStop(1, A.sky[1]);
+    x.fillStyle = sky; x.fillRect(0, top, W, horizon + 140 - top);
+    // estrelas (noite)
+    if (A.night) for (let i = 0; i < 140; i++) {
+      const sx = r() * W, sy = top + r() * (horizon - top), sr = r() * 1.6 + 0.4;
+      x.fillStyle = 'rgba(255,255,240,' + (0.4 + r() * 0.6) + ')'; x.beginPath(); x.arc(sx, sy, sr, 0, 7); x.fill();
+      if (sr > 1.7) { x.strokeStyle = 'rgba(255,255,240,.5)'; x.lineWidth = 0.8; x.beginPath(); x.moveTo(sx - 5, sy); x.lineTo(sx + 5, sy); x.moveTo(sx, sy - 5); x.lineTo(sx, sy + 5); x.stroke(); }
+    }
+    // sol / lua com raios
+    const [sx, sy] = A.sun;
+    x.save(); x.translate(sx, sy);
+    for (let i = 0; i < 16; i++) {
+      x.rotate(Math.PI / 8);
+      x.fillStyle = A.night ? 'rgba(200,220,255,.07)' : 'rgba(255,250,220,.22)';
+      x.beginPath(); x.moveTo(0, 0); x.lineTo(420, -40); x.lineTo(420, 40); x.closePath(); x.fill();
+    }
+    const sg = x.createRadialGradient(0, 0, 10, 0, 0, 120);
+    sg.addColorStop(0, A.night ? 'rgba(240,245,255,.9)' : 'rgba(255,252,225,1)'); sg.addColorStop(0.45, A.night ? 'rgba(180,200,255,.35)' : 'rgba(255,220,140,.6)'); sg.addColorStop(1, 'rgba(255,200,120,0)');
+    x.fillStyle = sg; x.beginPath(); x.arc(0, 0, 120, 0, 7); x.fill();
+    x.fillStyle = A.night ? '#eef2ff' : '#fff6cf'; x.strokeStyle = P[0]; x.lineWidth = 4;
+    x.beginPath(); x.arc(0, 0, 46, 0, 7); x.fill(); x.stroke();
+    if (A.night) { x.fillStyle = 'rgba(120,130,170,.35)'; [[-14, -10, 9], [12, 8, 7], [8, -18, 5]].forEach(([a, b, rr]) => { x.beginPath(); x.arc(a, b, rr, 0, 7); x.fill(); }); }
+    x.restore();
+    // nuvens
+    if (!A.space) for (let i = 0; i < 4; i++) {
+      const cx = 140 + r() * 600, cy = top + 40 + r() * (horizon - top - 160), s = 0.7 + r() * 0.6;
+      x.save(); x.translate(cx, cy); x.scale(s, s);
+      const blobs = [[-40, 6, 22], [-12, -8, 30], [22, -2, 26], [46, 8, 18], [4, 12, 24]];
+      const shape = () => { x.beginPath(); blobs.forEach(([a, b, rr]) => { x.moveTo(a + rr, b); x.arc(a, b, rr, 0, 7); }); };
+      shape(); x.strokeStyle = this.rgb(this.hex(P[0]), A.night ? 0.25 : 0.45); x.lineWidth = 6; x.stroke();   // contorno só por fora
+      shape(); x.fillStyle = A.night ? 'rgb(70,76,120)' : '#fffdf6'; x.fill();
+      x.fillStyle = A.night ? 'rgba(20,24,60,.35)' : 'rgba(150,170,200,.35)';
+      x.beginPath(); blobs.forEach(([a, b, rr]) => { x.moveTo(a + rr, b + rr * 0.35); x.arc(a, b + rr * 0.35, rr * 0.75, 0, Math.PI); }); x.fill();
+      x.restore();
+    }
+    if (A.space) {
+      // planeta gigante no horizonte e anéis
+      x.save(); x.translate(418, horizon + 380);
+      const pg = x.createRadialGradient(-120, -260, 40, 0, 0, 470);
+      pg.addColorStop(0, this.shade(P[1], 0.3)); pg.addColorStop(0.6, P[1]); pg.addColorStop(1, this.shade(P[1], -0.7));
+      x.fillStyle = pg; x.beginPath(); x.arc(0, 0, 440, 0, 7); x.fill();
+      x.strokeStyle = P[0]; x.lineWidth = 5; x.stroke();
+      x.strokeStyle = this.rgb(this.hex(P[2]), 0.6); x.lineWidth = 7; x.beginPath(); x.ellipse(0, -60, 620, 120, -0.08, Math.PI * 1.05, Math.PI * 1.95); x.stroke();
+      x.restore();
+    } else {
+      // serra ao longe e morros perto (silhuetas com contorno)
+      const ridge = (base, amp, freq, col, off) => {
+        x.beginPath(); x.moveTo(0, H);
+        for (let X = 0; X <= W; X += 8) x.lineTo(X, base - (N(X * freq + off, off) - 0.3) * amp - Math.sin(X / 140 + off) * amp * 0.25);
+        x.lineTo(W, H); x.closePath();
+        x.fillStyle = col; x.fill(); x.strokeStyle = P[0]; x.lineWidth = 3.5; x.stroke();
+      };
+      ridge(horizon, 120, 0.006, A.hills[0], 3.1);
+      // casario / árvores em cima do morro de perto
+      const near = horizon + 70;
+      const sk = A.skyline || [];
+      sk.forEach((nm, i) => {
+        const px = 120 + (i + 0.5) * (656 / sk.length) + (r() - 0.5) * 40, sz = 46 + r() * 26;
+        this.paintIcon(x, nm, px, near - sz * 0.28, sz, [P[0], this.shade(A.hills[1], -0.25), this.shade(A.hills[1], -0.1), this.shade(A.hills[1], -0.3), this.shade(A.hills[1], -0.2)], 0, 1 + (i % 4));
+        // janelinhas acesas à noite
+        if (A.night && (nm === 'house' || nm === 'church')) { x.fillStyle = 'rgba(255,214,120,.9)'; x.fillRect(px - 4, near - sz * 0.28 + 2, 6, 7); }
+      });
+      ridge(near + 10, 60, 0.01, A.hills[1], 7.7);
+    }
+    // retícula descendo (passagem do céu para a madeira)
+    x.fillStyle = this.rgb(this.hex(P[0]), 0.16);
+    for (let yy = horizon + 60; yy < horizon + 330; yy += 9) for (let xx = (yy / 9 % 2) * 4.5; xx < W; xx += 9) {
+      const k = (yy - horizon - 60) / 270; x.beginPath(); x.arc(xx, yy, 0.6 + k * 2.6, 0, 7); x.fill();
+    }
+    // máscara: a pintura some aos poucos para baixo (deixa a madeira aparecer)
+    x.globalCompositeOperation = 'destination-in';
+    const m = x.createLinearGradient(0, 0, 0, H);
+    m.addColorStop(0, 'rgba(0,0,0,1)'); m.addColorStop((horizon + 120) / H, 'rgba(0,0,0,.95)'); m.addColorStop((horizon + 360) / H, 'rgba(0,0,0,0)');
+    x.fillStyle = m; x.fillRect(0, 0, W, H);
+    return c;
+  },
+
   /* ---------- mesa completa ---------- */
-  /** desenha a mesa num canvas 896×1200 (ou menor, com scale) */
-  render(def, scale = 1) {
-    const W = 896, H = 1200, L = def.layout, th = Object.assign({
+  render(def, scale = 1, opts = {}) {
+    const W = 896, H = 1200, L = def.layout;
+    const th = Object.assign({
       wood: ['#6b3d18', '#b9793c'], frame: ['#2a160a', '#5a3214'], rail: '#8a5426', railDark: '#24120a',
       railWood: ['#7a4620', '#c48444'], metal: '#d9a441', burn: 'rgba(42,18,5,.78)', burnFill: 'rgba(42,18,5,.12)',
       inlay: ['#ffd89a', '#d08a3c'], insert: '#e8a040', apron: ['#1d0f07', '#3a1d0b'], grain: 1
     }, def.theme || {});
+    const A = this.artOf(def), P = A.paint, ink = P[0];
     const seed = this.hashStr(def.id);
     const c = document.createElement('canvas'); c.width = Math.round(W * scale); c.height = Math.round(H * scale);
     const ctx = c.getContext('2d'); ctx.scale(scale, scale);
 
-    // 1) moldura (gabinete)
-    const frame = this.woodCanvas(Math.ceil(W * scale), Math.ceil(H * scale), th.frame[0], th.frame[1], seed + 7, scale, 0.8);
-    ctx.drawImage(frame, 0, 0, W, H);
+    // 1) gabinete
+    ctx.drawImage(this.woodCanvas(Math.ceil(W * scale), Math.ceil(H * scale), th.frame[0], th.frame[1], seed + 7, scale, 0.8), 0, 0, W, H);
+    const fg = ctx.createLinearGradient(0, 0, W, 0);
+    fg.addColorStop(0, 'rgba(0,0,0,.45)'); fg.addColorStop(0.08, 'rgba(0,0,0,0)'); fg.addColorStop(0.92, 'rgba(0,0,0,0)'); fg.addColorStop(1, 'rgba(0,0,0,.45)');
+    ctx.fillStyle = fg; ctx.fillRect(0, 0, W, H);
 
-    // 2) tabuleiro de madeira recortado pelo contorno
-    const outer = L.walls.find(w => w.id === 'externa').pts;
+    // 2) tabuleiro
+    const outer = (L.walls.find(w => w.id === 'externa') || L.walls[0]).pts;
     ctx.save();
     this.pathPts(ctx, [...outer, [860, 1200], [32, 1200]], true); ctx.clip();
     const wood = this.woodCanvas(Math.ceil(W * scale), Math.ceil(H * scale), th.wood[0], th.wood[1], seed, scale, th.grain);
     ctx.drawImage(wood, 0, 0, W, H);
-    // vinheta queimada
-    const vg = ctx.createRadialGradient(W / 2, H * 0.48, H * 0.25, W / 2, H * 0.5, H * 0.75);
-    vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(25,10,2,.55)');
-    ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
-    // corredor do lançador (madeira mais escura)
-    const pl = L.plungerLane;
-    if (pl) { ctx.fillStyle = 'rgba(20,8,2,.35)'; ctx.fillRect(pl.x0 - 8, pl.top, pl.x1 - pl.x0 + 16, H - pl.top); }
+    // pintura do cenário em cima da madeira, e o veio de volta por cima (tinta sobre madeira)
+    ctx.drawImage(this.paintScene(ctx, def, A, seed), 0, 0, W, H);
+    ctx.save(); ctx.globalCompositeOperation = 'overlay'; ctx.globalAlpha = 0.38; ctx.drawImage(wood, 0, 0, W, H); ctx.restore();
 
-    // 3) gravuras e título (por baixo dos trilhos)
+    // raios atrás do título e faixas pintadas
     const D = L.decor || {};
-    (D.icons || []).forEach(i => this.icon(ctx, i[0], i[1], i[2], i[3] || 70, th, i[4] || 0));
-    (D.texts || []).forEach(t => {
-      if (t.title) this.title(ctx, t.text, t.x, t.y, t.size || 70, th, t.rot || 0);
-      else { ctx.save(); ctx.translate(t.x, t.y); ctx.rotate(t.rot || 0); ctx.font = `${t.size || 18}px Rye, Georgia, serif`; ctx.textAlign = 'center'; ctx.fillStyle = th.burn; ctx.fillText(t.text, 0, 0); ctx.restore(); }
+    const tt = (D.texts || []).find(t => t.title);
+    if (tt) {
+      ctx.save(); ctx.translate(tt.x, tt.y);
+      const rg = ctx.createRadialGradient(0, 0, 20, 0, 0, 320);
+      rg.addColorStop(0, this.shade(P[2], 0, 0.55)); rg.addColorStop(1, this.shade(P[2], 0, 0));
+      for (let i = 0; i < 24; i++) { ctx.rotate(Math.PI / 12); ctx.fillStyle = i % 2 ? rg : 'rgba(0,0,0,0)'; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(340, -46); ctx.lineTo(340, 46); ctx.closePath(); ctx.fill(); }
+      ctx.restore();
+    }
+    // parte de baixo: tinta escurecendo para o avental + medalhão atrás das luzes do multiplicador
+    const low = ctx.createLinearGradient(0, 760, 0, 1160);
+    low.addColorStop(0, this.shade(P[3], -0.3, 0)); low.addColorStop(1, this.shade(P[3], -0.45, 0.55));
+    ctx.fillStyle = low; ctx.fillRect(0, 760, W, 440);
+    const grid = L.lights.grid || [];
+    if (grid.length) {
+      const gx = grid.reduce((a, p) => a + p[0], 0) / grid.length, gy = grid.reduce((a, p) => a + p[1], 0) / grid.length;
+      ctx.save(); ctx.translate(gx, gy);
+      ctx.shadowColor = 'rgba(0,0,0,.45)'; ctx.shadowBlur = 14; ctx.shadowOffsetY = 6;
+      const mg = ctx.createRadialGradient(0, -20, 10, 0, 0, 112);
+      mg.addColorStop(0, this.shade(P[3], 0.15, 0.95)); mg.addColorStop(1, this.shade(P[3], -0.5, 0.95));
+      ctx.fillStyle = mg; ctx.beginPath(); ctx.arc(0, 0, 108, 0, 7); ctx.fill();
+      ctx.restore(); ctx.save(); ctx.translate(gx, gy);
+      ctx.lineWidth = 5; ctx.strokeStyle = ink; ctx.beginPath(); ctx.arc(0, 0, 108, 0, 7); ctx.stroke();
+      ctx.lineWidth = 2.5; ctx.strokeStyle = th.metal; ctx.setLineDash([6, 6]); ctx.beginPath(); ctx.arc(0, 0, 96, 0, 7); ctx.stroke(); ctx.setLineDash([]);
+      for (let i = 0; i < 16; i++) { const a = i * Math.PI / 8; ctx.fillStyle = i % 2 ? P[2] : P[4]; ctx.beginPath(); ctx.arc(Math.cos(a) * 108, Math.sin(a) * 108, 5, 0, 7); ctx.fill(); ctx.strokeStyle = ink; ctx.lineWidth = 1.5; ctx.stroke(); }
+      ctx.restore();
+      this.label(ctx, 'MULTIPLICADOR', gx, gy - 92, 10, ink, this.shade(P[2], 0.4));
+    }
+    // arabescos barrocos (como nas igrejas de Minas) ao lado das palhetas
+    [[1, 0], [-1, 0]].forEach(([sgn]) => {
+      ctx.save(); ctx.translate(418 + sgn * 190, 1105); ctx.scale(sgn, 1);
+      ctx.strokeStyle = this.shade(P[2], 0, 0.55); ctx.lineWidth = 3; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(-70, 20); ctx.bezierCurveTo(-30, -30, 20, 30, 60, -10); ctx.bezierCurveTo(80, -30, 60, -50, 44, -36); ctx.bezierCurveTo(34, -26, 46, -14, 54, -22); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(-40, 6); ctx.bezierCurveTo(-50, -20, -20, -34, -12, -16); ctx.stroke();
+      ctx.restore();
     });
-    // insertos de luz
-    const ins = th.insert;
-    Object.values(L.lights.shots || {}).forEach(arr => arr.forEach(([x, y, a]) => this.insert(ctx, x, y, 'arrow', a, ins)));
-    (L.lights.grid || []).forEach(([x, y], i) => this.insert(ctx, x, y, 'circle', 0, i === 6 ? '#ff6a3a' : ins, 1.25));
-    (L.laneGroups || []).forEach(g => g.lanes.forEach(([x, y]) => this.insert(ctx, x, y, 'tri', 0, '#7fd4ff')));
-    (L.outlanes || []).forEach(o => { const s = L.sensors[o.sensor]; if (s) this.insert(ctx, s[0], s[1], 'circle', 0, '#ff5a3a'); if (o.kickback) this.insert(ctx, o.kickback.x, o.kickback.y - 34, 'arrow', -90, '#7dff9a'); });
-    (L.inlanes || []).forEach(o => { const s = L.sensors[o.sensor]; if (s) this.insert(ctx, s[0], s[1], 'circle', 0, ins, 0.8); });
-    if (L.lights.drain) this.insert(ctx, L.lights.drain[0], L.lights.drain[1] - 34, 'circle', 0, '#7dff9a', 1.3);
+    // faixa colorida ao longo da borda (pintura de fábrica)
+    ctx.save(); this.pathPts(ctx, outer); ctx.lineJoin = 'round';
+    ctx.strokeStyle = this.shade(P[4], 0, 0.75); ctx.lineWidth = 64; ctx.stroke();
+    ctx.strokeStyle = this.shade(P[2], 0, 0.9); ctx.lineWidth = 40; ctx.stroke();
+    ctx.strokeStyle = ink; ctx.lineWidth = 36; ctx.globalAlpha = 0.55; ctx.stroke(); ctx.globalAlpha = 1;
+    ctx.restore();
+    // corredor do lançador
+    const pl = L.plungerLane;
+    if (pl) {
+      const lg = ctx.createLinearGradient(pl.x0 - 8, 0, pl.x1 + 8, 0);
+      lg.addColorStop(0, 'rgba(10,4,1,.7)'); lg.addColorStop(0.5, 'rgba(40,20,8,.35)'); lg.addColorStop(1, 'rgba(10,4,1,.7)');
+      ctx.fillStyle = lg; ctx.fillRect(pl.x0 - 8, pl.top - 40, pl.x1 - pl.x0 + 16, H - pl.top + 40);
+      this.label(ctx, 'TACADA DE MESTRE', (pl.x0 + pl.x1) / 2, pl.top + 260, 11, ink, '#ffe9b0', -Math.PI / 2);
+    }
+    // faixas das inlanes/outlanes
+    (L.walls.filter(w => /^divisor/.test(w.id))).forEach(w => {
+      ctx.save(); this.pathPts(ctx, w.pts); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+      ctx.strokeStyle = this.shade(P[1], 0, 0.5); ctx.lineWidth = 46; ctx.stroke(); ctx.restore();
+    });
 
-    // 4) buracos (fundo escuro + aro de latão)
+    // 3) gravuras: ícones grandes pintados, pequenos pirografados
+    (D.icons || []).forEach(i => {
+      const [nm, ix, iy, sz = 70, rot = 0] = i;
+      if (opts.skipAnim && this.SPRITE_ANIM[this.ANIM[nm]]) return;
+      if (sz >= 44) this.paintIcon(ctx, nm, ix, iy, sz * 1.25, P, rot);
+      else this.icon(ctx, nm, ix, iy, sz, th, rot);
+    });
+    (D.texts || []).forEach(t => {
+      if (t.title) this.title(ctx, t.text, t.x, t.y, t.size || 70, th, t.rot || 0, P);
+      else this.label(ctx, t.text.toUpperCase(), t.x, t.y, Math.max(10, (t.size || 16) * 0.8), ink, this.shade(P[2], 0.5), t.rot || 0);
+    });
+
+    // 4) insertos de luz
+    const ins = th.insert;
+    Object.entries(L.lights.shots || {}).forEach(([id, arr]) => {
+      const sh = (L.shots || []).find(s => s.id === id) || (L.ramps || []).find(s => s.id === id);
+      arr.forEach(([x, y, a], k) => this.insert(ctx, x, y, 'arrow', a, k % 2 ? P[2] : ins, 1.05));
+      if (sh && arr.length) { const [x, y] = arr[arr.length - 1]; this.label(ctx, (sh.name || '').replace(/!/g, ''), x, y + 30, 10, ink, '#ffffff'); }
+    });
+    (L.lights.grid || []).forEach(([x, y], i) => this.insert(ctx, x, y, 'circle', 0, i === 6 ? P[4] : P[2], 1.3, (i + 2) + 'X', ink));
+    (L.laneGroups || []).forEach(g => g.lanes.forEach(([x, y]) => this.insert(ctx, x, y, g.lanes.length > 3 || y < 300 ? 'tri' : 'star', 0, P[3], 1.1)));
+    (L.outlanes || []).forEach(o => {
+      const s = L.sensors[o.sensor]; if (s) this.insert(ctx, s[0], s[1], 'circle', 0, P[4], 0.95);
+      if (o.kickback) { this.insert(ctx, o.kickback.x, o.kickback.y - 34, 'arrow', -90, '#4ee07a', 1); this.label(ctx, 'KICKBACK', o.kickback.x, o.kickback.y + 2, 9, ink, '#c8ffd8'); }
+    });
+    (L.inlanes || []).forEach(o => { const s = L.sensors[o.sensor]; if (s) this.insert(ctx, s[0], s[1], 'circle', 0, ins, 0.8); });
+    if (L.lights.drain) { this.insert(ctx, L.lights.drain[0], L.lights.drain[1] - 34, 'pill', 0, '#4ee07a', 1.2); this.label(ctx, 'BOLA SALVA', L.lights.drain[0], L.lights.drain[1] - 34, 9, ink, '#ffffff'); }
+    if (L.ballStart) for (let i = 0; i < 8; i++) this.insert(ctx, L.ballStart[0], L.ballStart[1] - 40 - i * 34, 'circle', 0, i < 5 ? '#f2c14e' : '#e8452c', 0.62);
+    // lâmpadas de iluminação geral na borda (soquetes)
+    let carry = 0;
+    for (let i = 0; i < outer.length - 1; i++) {
+      const [x1, y1] = outer[i], [x2, y2] = outer[i + 1], len = Math.hypot(x2 - x1, y2 - y1);
+      for (let d = carry; d < len; d += 46) {
+        const t = d / len, bx = x1 + (x2 - x1) * t, by = y1 + (y2 - y1) * t;
+        if (by > 1120) continue;
+        ctx.fillStyle = '#2a2a2a'; ctx.beginPath(); ctx.arc(bx, by, 6, 0, 7); ctx.fill();
+        const bg = ctx.createRadialGradient(bx - 1, by - 1, 0.5, bx, by, 4.5);
+        bg.addColorStop(0, '#fffbe8'); bg.addColorStop(1, '#d8a040'); ctx.fillStyle = bg; ctx.beginPath(); ctx.arc(bx, by, 4.2, 0, 7); ctx.fill();
+      }
+      carry = Math.max(0, 46 - (len % 46));
+    }
+
+    // 5) buracos (aro cromado, anel de luz, placa com o nome)
     (L.holes || []).forEach(h => {
       const black = h.type === 'blackhole', r = black ? 30 : 20;
-      const g = ctx.createRadialGradient(h.x, h.y, 2, h.x, h.y, r);
-      g.addColorStop(0, '#000'); g.addColorStop(0.7, black ? '#14061e' : '#120803'); g.addColorStop(1, 'rgba(0,0,0,0)');
+      if (black) {
+        ctx.save(); ctx.translate(h.x, h.y);
+        for (let k = 0; k < 4; k++) {
+          ctx.rotate(Math.PI / 2); ctx.beginPath();
+          for (let q = 0; q <= 30; q++) { const t = q / 30, rr = 10 + t * 52, a = t * 3.6; q ? ctx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr) : ctx.moveTo(Math.cos(a) * rr, Math.sin(a) * rr); }
+          ctx.strokeStyle = 'rgba(150,80,255,.55)'; ctx.lineWidth = 6; ctx.stroke();
+        }
+        ctx.restore();
+      }
+      const g = ctx.createRadialGradient(h.x, h.y + 3, 2, h.x, h.y, r);
+      g.addColorStop(0, '#000'); g.addColorStop(0.75, black ? '#12051c' : '#0e0603'); g.addColorStop(1, 'rgba(0,0,0,.6)');
       ctx.fillStyle = g; ctx.beginPath(); ctx.arc(h.x, h.y, r, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = th.metal; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(h.x, h.y, r - 4, 0, Math.PI * 2); ctx.stroke();
-      if (h.label) { ctx.font = '14px Rye, Georgia, serif'; ctx.textAlign = 'center'; ctx.fillStyle = th.burn; ctx.fillText(h.label, h.x, h.y + r + 14); }
+      ctx.beginPath(); ctx.arc(h.x, h.y, r - 3, 0, Math.PI * 2); this.chromeStroke(ctx, 4);
+      ctx.beginPath(); ctx.arc(h.x, h.y, r + 6, 0, Math.PI * 2); ctx.strokeStyle = this.shade(black ? '#a060ff' : P[2], 0, 0.75); ctx.lineWidth = 4; ctx.stroke();
+      if (h.label) {
+        ctx.font = '10px Bungee, Impact, sans-serif'; const tw = ctx.measureText(h.label).width + 12;
+        ctx.fillStyle = ink; ctx.strokeStyle = th.metal; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.roundRect ? ctx.roundRect(h.x - tw / 2, h.y + r + 6, tw, 16, 4) : ctx.rect(h.x - tw / 2, h.y + r + 6, tw, 16); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = th.inlay[0]; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(h.label, h.x, h.y + r + 14.5);
+      }
     });
-    // kickers (copo de latão)
     (L.kickers || []).forEach(k => {
-      ctx.fillStyle = '#100703'; ctx.beginPath(); ctx.arc(k.x, k.y, 17, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = th.metal; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(k.x, k.y, 15, 0, Math.PI * 2); ctx.stroke();
+      ctx.fillStyle = '#0a0402'; ctx.beginPath(); ctx.arc(k.x, k.y, 18, 0, Math.PI * 2); ctx.fill();
+      const kg = ctx.createRadialGradient(k.x - 5, k.y - 5, 2, k.x, k.y, 17);
+      kg.addColorStop(0, '#fff2c0'); kg.addColorStop(0.5, th.metal); kg.addColorStop(1, '#4a2e08');
+      ctx.strokeStyle = kg; ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(k.x, k.y, 15, 0, Math.PI * 2); ctx.stroke();
+      ctx.fillStyle = '#e8452c'; ctx.beginPath(); ctx.arc(k.x, k.y, 5, 0, 7); ctx.fill();
     });
 
-    // 5) trilhos, guias, postes
+    // 6) trilhos, guias, portões, postes
     const pat = ctx.createPattern(this.woodCanvas(160, 160, th.railWood[0], th.railWood[1], seed + 3, 1, 1.3), 'repeat');
     L.walls.forEach(w => {
       if (w.style === 'none') return;
       const t = w.t || 6;
-      if (w.style === 'flap') { this.rail(ctx, w.pts, t, Object.assign({}, th, { railDark: '#140806' }), '#3a1608', { screws: false }); return; }
-      if (w.style === 'outer') { this.rail(ctx, w.pts, t + 2, th, pat); return; }
-      this.rail(ctx, w.pts, t, th, pat, { screws: w.style !== 'guide' });
+      if (w.style === 'flap') { ctx.save(); this.pathPts(ctx, w.pts); ctx.lineCap = 'round'; ctx.strokeStyle = P[4]; ctx.lineWidth = t * 2 + 2; ctx.stroke(); ctx.strokeStyle = 'rgba(255,255,255,.4)'; ctx.lineWidth = 1.5; ctx.stroke(); ctx.restore(); return; }
+      if (w.style === 'guide') { ctx.save(); ctx.lineCap = 'round'; ctx.shadowColor = 'rgba(0,0,0,.5)'; ctx.shadowBlur = 5; ctx.shadowOffsetX = 3; ctx.shadowOffsetY = 4; this.pathPts(ctx, w.pts); this.chromeStroke(ctx, t * 1.6); ctx.restore(); return; }
+      if (w.style === 'outer') { this.rail(ctx, w.pts, t + 3, th, pat); return; }
+      this.rail(ctx, w.pts, t, th, pat);
     });
     (L.blocks || []).forEach(b => { this.pathPts(ctx, b.pts, true); ctx.fillStyle = pat; ctx.fill(); ctx.strokeStyle = th.railDark; ctx.lineWidth = 3; ctx.stroke(); });
-    (L.gates || []).forEach(g => { ctx.save(); ctx.strokeStyle = '#b9b9b9'; ctx.lineWidth = 4; ctx.setLineDash([7, 5]); this.pathPts(ctx, g.pts); ctx.stroke(); ctx.restore(); });
-    (L.posts || []).forEach(([x, y, r]) => this.post(ctx, x, y, r || 6, th));
+    (L.gates || []).forEach(g => {
+      ctx.save(); ctx.lineCap = 'round'; this.pathPts(ctx, g.pts); this.chromeStroke(ctx, 3); ctx.restore();
+      g.pts.forEach(([x, y]) => this.screw(ctx, x, y, 4, '#c8ccd2'));
+    });
+    (L.posts || []).forEach(([x, y, r], i) => this.post(ctx, x, y, r || 6, th, i % 2 ? P[1] : P[4]));
 
-    // 6) estilingues: madeira + borracha
+    // 7) estilingues de plástico colorido com borracha branca
     (L.slings || []).forEach(s => {
-      ctx.save();
-      ctx.shadowColor = 'rgba(0,0,0,.6)'; ctx.shadowBlur = 8; ctx.shadowOffsetX = 4; ctx.shadowOffsetY = 6;
-      this.pathPts(ctx, s.pts, true); ctx.fillStyle = pat; ctx.fill();
-      ctx.restore();
-      this.pathPts(ctx, s.pts, true); ctx.lineJoin = 'round'; ctx.lineWidth = 7; ctx.strokeStyle = '#1a0b06'; ctx.stroke();
-      ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(255,255,255,.18)'; ctx.stroke();
       const cx = (s.pts[0][0] + s.pts[1][0] + s.pts[2][0]) / 3, cy = (s.pts[0][1] + s.pts[1][1] + s.pts[2][1]) / 3;
-      this.icon(ctx, 'lightning', cx, cy + 4, 34, th);
-      s.pts.forEach(([x, y]) => this.screw(ctx, x, y, 6, th.metal));
+      ctx.save(); ctx.lineJoin = 'round';
+      ctx.shadowColor = 'rgba(0,0,0,.6)'; ctx.shadowBlur = 10; ctx.shadowOffsetX = 5; ctx.shadowOffsetY = 8;
+      this.pathPts(ctx, s.pts, true); ctx.fillStyle = '#ece8dc'; ctx.lineWidth = 11; ctx.strokeStyle = '#ece8dc'; ctx.stroke(); ctx.fill();
+      ctx.restore();
+      ctx.save(); this.pathPts(ctx, s.pts, true); ctx.clip();
+      const sg = ctx.createLinearGradient(cx - 50, cy - 60, cx + 50, cy + 60);
+      sg.addColorStop(0, this.shade(P[1], 0.3)); sg.addColorStop(1, this.shade(P[1], -0.3));
+      ctx.fillStyle = sg; ctx.fillRect(cx - 120, cy - 120, 240, 240);
+      ctx.fillStyle = 'rgba(255,255,255,.18)';
+      for (let k = -120; k < 120; k += 14) { ctx.beginPath(); ctx.moveTo(cx + k, cy - 120); ctx.lineTo(cx + k + 6, cy - 120); ctx.lineTo(cx + k - 114, cy + 120); ctx.lineTo(cx + k - 120, cy + 120); ctx.closePath(); ctx.fill(); }
+      ctx.restore();
+      this.pathPts(ctx, s.pts, true); ctx.lineJoin = 'round'; ctx.lineWidth = 2; ctx.strokeStyle = ink; ctx.stroke();
+      this.paintIcon(ctx, 'lightning', cx, cy + 4, 40, P, 0, 2);
+      s.pts.forEach(([x, y]) => this.post(ctx, x, y, 5, th, P[4]));
     });
 
-    // 7) avental (parte de baixo) com plaquinha
+    // 8) avental de metal com cartão de instruções
     ctx.save();
-    const ap = ctx.createLinearGradient(0, 1140, 0, 1200); ap.addColorStop(0, th.apron[1]); ap.addColorStop(1, th.apron[0]);
-    ctx.fillStyle = ap;
-    ctx.beginPath(); ctx.moveTo(32, 1200); ctx.lineTo(32, 1150); ctx.quadraticCurveTo(418, 1185, 804, 1150); ctx.lineTo(804, 1200); ctx.closePath(); ctx.fill();
-    ctx.strokeStyle = th.metal; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(32, 1150); ctx.quadraticCurveTo(418, 1185, 804, 1150); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(32, 1200); ctx.lineTo(32, 1148); ctx.quadraticCurveTo(418, 1186, 804, 1148); ctx.lineTo(804, 1200); ctx.closePath();
+    const ap = ctx.createLinearGradient(0, 1140, 0, 1200); ap.addColorStop(0, this.shade(P[4], -0.35)); ap.addColorStop(1, this.shade(P[4], -0.75));
+    ctx.fillStyle = ap; ctx.fill();
+    ctx.lineWidth = 4; ctx.strokeStyle = '#9aa0a8'; ctx.beginPath(); ctx.moveTo(32, 1148); ctx.quadraticCurveTo(418, 1186, 804, 1148); ctx.stroke();
+    ctx.lineWidth = 1.5; ctx.strokeStyle = '#ffffff'; ctx.stroke();
     ctx.restore();
-    ctx.restore(); // fim do clip
+
+    // 9) verniz: luz quente de cima, brilho diagonal e vinheta
+    const gi = ctx.createRadialGradient(W / 2, 80, 30, W / 2, 200, 760);
+    gi.addColorStop(0, 'rgba(255,230,170,.16)'); gi.addColorStop(1, 'rgba(255,230,170,0)');
+    ctx.fillStyle = gi; ctx.fillRect(0, 0, W, H);
+    const gl = ctx.createLinearGradient(0, 0, W, H * 0.7);
+    gl.addColorStop(0.3, 'rgba(255,255,255,0)'); gl.addColorStop(0.42, 'rgba(255,255,255,.07)'); gl.addColorStop(0.47, 'rgba(255,255,255,0)');
+    ctx.fillStyle = gl; ctx.fillRect(0, 0, W, H);
+    const vg = ctx.createRadialGradient(W / 2, H * 0.48, H * 0.3, W / 2, H * 0.5, H * 0.78);
+    vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(15,6,1,.55)');
+    ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
+    ctx.restore(); // fim do recorte
 
     return c;
   },
 
-  /** Camada das rampas de arame (transparente, vai por cima da bola) */
+  /** Rampas por cima da bola: arame cromado (ou madeira) + placa com o nome */
   renderRamps(def, scale = 1) {
     const L = def.layout; if (!L.ramps || !L.ramps.length) return null;
     const c = document.createElement('canvas'); c.width = Math.round(896 * scale); c.height = Math.round(1200 * scale);
     const ctx = c.getContext('2d'); ctx.scale(scale, scale);
-    const th = def.theme || {}, metal = th.wire || '#cfd3d8';
+    const th = def.theme || {}, metal = th.wire || '#dfe4ea', P = this.artOf(def).paint;
     L.ramps.forEach(R => {
       const pts = this.smoothPath(R.path, 12);
-      if (R.style === 'wood') { this.woodRamp(ctx, pts, def, R); return; }
-      // sombra no tabuleiro
-      ctx.save(); ctx.translate(10, 14); ctx.globalAlpha = 0.25; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-      this.pathPts(ctx, pts); ctx.strokeStyle = '#000'; ctx.lineWidth = 30; ctx.stroke(); ctx.restore();
-      // dois arames + travessas
-      const off = (k) => pts.map((p, i) => {
-        const q = pts[Math.min(i + 1, pts.length - 1)], o = pts[Math.max(i - 1, 0)];
-        const dx = q[0] - o[0], dy = q[1] - o[1], d = Math.hypot(dx, dy) || 1;
-        return [p[0] - dy / d * k, p[1] + dx / d * k];
-      });
-      const A = off(15), B = off(-15);
-      ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-      for (let i = 0; i < pts.length; i += 3) { ctx.strokeStyle = 'rgba(120,124,130,.9)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(A[i][0], A[i][1]); ctx.lineTo(B[i][0], B[i][1]); ctx.stroke(); }
-      [A, B].forEach(P => {
-        this.pathPts(ctx, P); ctx.strokeStyle = '#3a3d42'; ctx.lineWidth = 6; ctx.stroke();
-        this.pathPts(ctx, P); ctx.strokeStyle = metal; ctx.lineWidth = 3.4; ctx.stroke();
-        ctx.save(); ctx.translate(-0.8, -0.8); this.pathPts(ctx, P); ctx.strokeStyle = 'rgba(255,255,255,.7)'; ctx.lineWidth = 1; ctx.stroke(); ctx.restore();
-      });
-      // aba de entrada (madeira)
-      const [m0, m1] = [R.path[0], R.path[1] || R.path[0]];
-      ctx.fillStyle = 'rgba(160,100,50,.85)'; ctx.beginPath(); ctx.arc(m0[0], m0[1], 16, 0, Math.PI * 2); ctx.fill();
+      if (R.style === 'wood') this.woodRamp(ctx, pts, def, R);
+      else {
+        ctx.save(); ctx.translate(12, 16); ctx.globalAlpha = 0.28; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+        this.pathPts(ctx, pts); ctx.strokeStyle = '#000'; ctx.lineWidth = 32; ctx.stroke(); ctx.restore();
+        const off = (k) => pts.map((p, i) => {
+          const q = pts[Math.min(i + 1, pts.length - 1)], o = pts[Math.max(i - 1, 0)];
+          const dx = q[0] - o[0], dy = q[1] - o[1], d = Math.hypot(dx, dy) || 1;
+          return [p[0] - dy / d * k, p[1] + dx / d * k];
+        });
+        const A = off(15), B = off(-15), A2 = off(10), B2 = off(-10);
+        ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+        for (let i = 0; i < pts.length; i += 3) { ctx.strokeStyle = 'rgba(110,116,124,.95)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(A[i][0], A[i][1]); ctx.lineTo(B[i][0], B[i][1]); ctx.stroke(); }
+        [A2, B2].forEach(Q => { this.pathPts(ctx, Q); ctx.strokeStyle = '#4a4e55'; ctx.lineWidth = 3; ctx.stroke(); ctx.strokeStyle = '#c8ccd2'; ctx.lineWidth = 1.4; ctx.stroke(); });
+        [A, B].forEach(Q => {
+          this.pathPts(ctx, Q); ctx.strokeStyle = '#2a2d32'; ctx.lineWidth = 6.5; ctx.stroke();
+          this.pathPts(ctx, Q); ctx.strokeStyle = metal; ctx.lineWidth = 3.6; ctx.stroke();
+          ctx.save(); ctx.translate(-0.8, -0.9); this.pathPts(ctx, Q); ctx.strokeStyle = 'rgba(255,255,255,.85)'; ctx.lineWidth = 1; ctx.stroke(); ctx.restore();
+        });
+      }
+      // aba de plástico colorido na entrada + placa com o nome
+      const [m0] = R.path;
+      ctx.save(); ctx.shadowColor = 'rgba(0,0,0,.5)'; ctx.shadowBlur = 6; ctx.shadowOffsetY = 4;
+      ctx.fillStyle = this.shade(P[1], 0, 0.92); ctx.beginPath(); ctx.arc(m0[0], m0[1], 20, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+      ctx.strokeStyle = P[0]; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(m0[0], m0[1], 20, 0, Math.PI * 2); ctx.stroke();
+      const name = (R.name || '').replace(/!/g, '');
+      ctx.font = '12px Bungee, Impact, sans-serif'; const tw = ctx.measureText(name).width + 18;
+      const sx = m0[0], sy = m0[1] - 38;
+      ctx.save(); ctx.shadowColor = 'rgba(0,0,0,.55)'; ctx.shadowBlur = 6; ctx.shadowOffsetY = 4;
+      ctx.fillStyle = P[4]; ctx.beginPath(); ctx.roundRect ? ctx.roundRect(sx - tw / 2, sy - 11, tw, 22, 6) : ctx.rect(sx - tw / 2, sy - 11, tw, 22); ctx.fill(); ctx.restore();
+      ctx.strokeStyle = P[0]; ctx.lineWidth = 2.5; ctx.stroke();
+      ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 1; ctx.strokeRect(sx - tw / 2 + 3, sy - 8, tw - 6, 16);
+      this.label(ctx, name, sx, sy + 1, 12, P[0], '#ffffff');
     });
     return c;
   },
@@ -316,8 +673,9 @@ UAI.TableArt = {
     ctx.save(); ctx.translate(12, 16); ctx.globalAlpha = 0.35; this.pathPts(ctx, pts); ctx.strokeStyle = '#000'; ctx.lineWidth = 54; ctx.stroke(); ctx.restore();
     this.pathPts(ctx, pts); ctx.strokeStyle = th.railDark; ctx.lineWidth = 54; ctx.stroke();
     this.pathPts(ctx, pts); ctx.strokeStyle = pat; ctx.lineWidth = 48; ctx.stroke();
-    this.pathPts(ctx, pts); ctx.strokeStyle = 'rgba(30,14,4,.55)'; ctx.lineWidth = 30; ctx.stroke();      // calha
+    this.pathPts(ctx, pts); ctx.strokeStyle = 'rgba(30,14,4,.55)'; ctx.lineWidth = 30; ctx.stroke();
     this.pathPts(ctx, pts); ctx.strokeStyle = pat; ctx.globalAlpha = 0.55; ctx.lineWidth = 26; ctx.stroke(); ctx.globalAlpha = 1;
+    this.pathPts(ctx, pts); ctx.strokeStyle = th.metal; ctx.lineWidth = 1.4; ctx.stroke();
     ctx.translate(-1.5, -2); this.pathPts(ctx, pts); ctx.strokeStyle = 'rgba(255,236,200,.22)'; ctx.lineWidth = 3; ctx.stroke();
     ctx.restore();
     for (let i = 4; i < pts.length - 2; i += 6) {

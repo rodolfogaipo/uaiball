@@ -100,7 +100,8 @@ Object.assign(GameScene.prototype, {
       this.addScore(P.combo * (this.combo - 1));
       sub = 'COMBO x' + this.combo + '!';
     }
-    if (this.shotLamps[sh.id]) this.lights.flashAll(this.shotLamps[sh.id], 1.2);
+    if (this.shotLamps[sh.id]) { this.lights.flashAll(this.shotLamps[sh.id], 1.2); this.lights.blinkAll(this.shotLamps[sh.id], 1400, 80, false); }
+    this.lights.show(this.rim, 'chase', 900);
     UAI.Sfx.ramp();
     this.party = Math.max(this.party, 1000);
     this.banner(sh.name || 'TIRO!', sub, '#ffd27a');
@@ -276,10 +277,47 @@ Object.assign(GameScene.prototype, {
     if (b) b.data.slingChain = 0;
     if (B.kind === 'shock') this.shockFx(B);
     B.flash = 1;
-    if (B.holder) this.tweens.add({ targets: B.holder, scaleX: 1.12, scaleY: B.persp * 1.12, duration: 60, yoyo: true });
-    UAI.Sfx.bumper(i);
-    this.addScore(UAI.CONFIG.POINTS.bumper, B.x, B.y - B.r - 14);
+    B.litUntil = this.now + 120;                 // desenho ACESO por um instante (TBumper::Fire)
+    if (B.holder) this.tweens.add({ targets: B.holder, scaleX: 1.1, scaleY: B.persp * 1.1, duration: 55, yoyo: true });
+    UAI.Sfx.bumper(i + this.bumperLevel);
+    const mult = [1, 1.5, 2, 3][this.bumperLevel] || 1;
+    this.addScore(UAI.CONFIG.POINTS.bumper * mult, B.x, B.y - B.r - 14);
     this.lights.flashAll(this.rim, 0.25);
+    if (B.kind !== 'wheel') this.bumperFx(B);
+  },
+
+  /** choque do bumper: onda de choque, faíscas e raios elétricos (como no Space Cadet) */
+  bumperFx(B) {
+    const col = this.parts.colors[this.bumperLevel] || 0xffd23a, R = (B.vr || B.r * 1.4);
+    const ring = this.add.image(B.x, B.y, 'ringfx').setBlendMode(Phaser.BlendModes.ADD).setTint(col).setDepth(6.5)
+      .setDisplaySize(R * 1.6, R * 1.6 * B.persp).setAlpha(0.95);
+    this.tweens.add({ targets: ring, displayWidth: R * 3.6, displayHeight: R * 3.6 * B.persp, alpha: 0, duration: 320, ease: 'Cubic.out', onComplete: () => ring.destroy() });
+    const fl = this.add.image(B.x, B.y, 'flare').setBlendMode(Phaser.BlendModes.ADD).setTint(0xffffff).setDepth(6.6).setDisplaySize(R * 2.6, R * 2.6).setAlpha(1).setRotation(Math.random());
+    this.tweens.add({ targets: fl, alpha: 0, angle: '+=40', duration: 220, onComplete: () => fl.destroy() });
+    for (let k = 0; k < 7; k++) {
+      const a = Math.random() * Math.PI * 2, d = R * (1.1 + Math.random() * 1.2);
+      const sp = this.add.image(B.x + Math.cos(a) * R * 0.7, B.y + Math.sin(a) * R * 0.7, 'glow').setBlendMode(Phaser.BlendModes.ADD).setTint(k % 2 ? 0xffffff : col).setDepth(6.6).setDisplaySize(9, 9);
+      this.tweens.add({ targets: sp, x: B.x + Math.cos(a) * d, y: B.y + Math.sin(a) * d, alpha: 0, duration: 260 + Math.random() * 160, ease: 'Cubic.out', onComplete: () => sp.destroy() });
+    }
+    // 2–3 raios elétricos saindo da cúpula
+    const g = this.add.graphics().setDepth(6.7).setBlendMode(Phaser.BlendModes.ADD);
+    for (let k = 0; k < 3; k++) {
+      let a = Math.random() * Math.PI * 2, px = B.x + Math.cos(a) * R * 0.55, py = B.y + Math.sin(a) * R * 0.55;
+      g.lineStyle(2.5, 0xbff4ff, 1); g.beginPath(); g.moveTo(px, py);
+      for (let s = 1; s <= 4; s++) { const rr = R * (0.55 + s * 0.22); a += (Math.random() - 0.5) * 0.6; g.lineTo(B.x + Math.cos(a) * rr, B.y + Math.sin(a) * rr); }
+      g.strokePath();
+    }
+    this.tweens.add({ targets: g, alpha: 0, duration: 160, onComplete: () => g.destroy() });
+  },
+
+  /** sobe o nível dos bumpers (completar grupos); cai sozinho depois de 60 s */
+  bumperUp() {
+    if (this.bumperLevel >= 3) return;
+    this.bumperLevel++; this.bumperUpAt = this.now;
+    this.bumpers.forEach(B => { if (B.kind !== 'wheel' && B.kind !== 'shock') { B.litUntil = this.now + 500; this.bumperFx(B); } });
+    this.after(900, () => this.banner('BUMPERS NÍVEL ' + (this.bumperLevel + 1), 'valem ' + ['1', '1,5', '2', '3'][this.bumperLevel] + 'x', '#9fe8ff', 1000));
+    UAI.Sfx.mult();
+    this.updateHUD();
   },
 
   shockFx(B) {
@@ -348,6 +386,7 @@ Object.assign(GameScene.prototype, {
       this.missionProgress('lanes', G.id);
       this.party = Math.max(this.party, 900);
       this.lights.flashAll(G.lamps, 1.2);
+      this.lights.blinkAll(G.lamps, 700, 70, false);
       this.after(700, () => { G.lit = G.lit.map(() => false); });
     }
   },
@@ -363,6 +402,7 @@ Object.assign(GameScene.prototype, {
   /** prêmio de um grupo completo (pistas, alvos) */
   groupAward(award, name) {
     const C = UAI.CONFIG;
+    this.bumperUp();
     switch (award) {
       case 'bonusX':
         if (this.bonusX < C.MAX_BONUSX) { this.bonusX++; this.banner(name + '!', 'BÔNUS ' + this.bonusX + 'x', '#9fe8ff'); }
@@ -498,6 +538,7 @@ Object.assign(GameScene.prototype, {
     this.jackpotsThisMB = 0;
     this.stats.multiballs++;
     this.banner('MULTIBOLA!', 'Acerte as rampas e os buracos: JACKPOT!', '#ffe066', 2200);
+    this.lights.show(this.lights.list, 'show', 3200);
     UAI.Sfx.mult();
     this.party = 3500;
     this.cameras.main.flash(300, 255, 220, 120);
@@ -521,6 +562,7 @@ Object.assign(GameScene.prototype, {
     this.jackpotsThisMB++;
     this.addScore(v, b.x, b.y - 60, true);
     this.after(250, () => this.banner('JACKPOT!', '+' + UAI.fmt(v), '#ffe066', 1200));
+    this.lights.show(this.lights.list, 'random', 1200);
     UAI.Sfx.record();
     this.cameras.main.flash(200, 255, 230, 140);
     this.jackpotValue += 5000;
