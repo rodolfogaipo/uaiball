@@ -30,7 +30,7 @@
       <li><kbd>←</kbd> <kbd>A</kbd> ou <kbd>Shift</kbd> palheta esquerda</li>
       <li><kbd>→</kbd> <kbd>D</kbd> ou <kbd>Shift</kbd> palheta direita</li>
       <li>Segure <kbd>↓</kbd> ou <kbd>Espaço</kbd> e solte para lançar</li>
-      <li><kbd>↑</kbd> ou <kbd>W</kbd> sacode a mesa</li>
+      <li><kbd>↑</kbd> ou <kbd>W</kbd> sacode a mesa (sem exagero!)</li>
       <li><kbd>P</kbd> / <kbd>Esc</kbd> pausa</li>
     </ul>
     <h2>Ajuste da mesa</h2>
@@ -43,19 +43,18 @@
   <div id="game"></div>
 
   <aside class="side side-right">
-    <h2>Pontuação</h2>
+    <h2>Como jogar</h2>
     <ul>
-      <li>Bumper: <b>100</b></li>
-      <li>Rampa da ferradura: <b>1.000</b></li>
-      <li>Órbita da câmara da mola: <b>500</b></li>
-      <li>Estilingue: <b>10</b></li>
-      <li>Triângulos (cada): <b>50</b></li>
-      <li>Trio aceso: <b>1.000</b></li>
-      <li>Buraco (estrela/caveira): <b>750</b></li>
-      <li>3 buracos = Mina de Ouro: <b>3.000</b></li>
-      <li>Buraco negro + túnel: <b>1.500</b></li>
-      <li>Mola: <b>250</b></li>
-      <li>A cada <b>5.000</b> o multiplicador sobe</li>
+      <li>Escolha a <b>mesa</b>: são 11 cenários de Minas</li>
+      <li>Ganhe <b>1 estrela</b> numa mesa e libera a próxima</li>
+      <li>Solte a mola na <b>luz verde</b>: tacada de mestre</li>
+      <li>Cumpra as <b>missões</b> (barra de baixo)</li>
+      <li>Trave 3 bolas: <b>MULTIBOLA</b> e jackpot</li>
+      <li>Emende tiros seguidos: <b>COMBO</b></li>
+      <li>Complete as pistas: <b>bônus 2x, 3x...</b></li>
+      <li>Saída da esquerda acesa = <b>kickback</b> salva a bola</li>
+      <li>Sacudir demais dá <b>TILT</b></li>
+      <li>Suba de <b>nível</b>, ganhe conquistas e faça o <b>desafio do dia</b></li>
     </ul>
   </aside>
 
@@ -82,11 +81,23 @@
   <script src="js/physics.js"></script>
   <script src="js/services.js"></script>
   <script src="js/lights.js"></script>
+  <script src="js/progress.js"></script>
+
+  <!-- Mesas (cada uma é só uma descrição em dados) e o desenhista -->
+  <script src="js/tables/kit.js"></script>
+  <script src="js/tables/t01_uaiball.js"></script>
+  <script src="js/tables/t02_t06.js"></script>
+  <script src="js/tables/t07_t11.js"></script>
+  <script src="js/render/tableArt.js"></script>
 
   <!-- Cenas -->
   <script src="scenes/BootScene.js"></script>
   <script src="scenes/MenuScene.js"></script>
+  <script src="scenes/TableSelectScene.js"></script>
+  <script src="scenes/ProfileScene.js"></script>
   <script src="scenes/GameScene.js"></script>
+  <script src="scenes/GameRules.js"></script>
+  <script src="scenes/GameEditor.js"></script>
   <script src="scenes/GameOverScene.js"></script>
   <script src="scenes/RankingScene.js"></script>
 

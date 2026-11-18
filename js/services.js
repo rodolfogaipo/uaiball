@@ -95,16 +95,18 @@ UAI.Sfx = {
    Se FIREBASE_DB_URL estiver vazio ou a rede falhar, usa ranking local. */
 UAI.Ranking = {
   online() { return !!(UAI.CONFIG.FIREBASE_DB_URL || '').trim(); },
-  base() { return UAI.CONFIG.FIREBASE_DB_URL.replace(/\/+$/, '') + '/' + UAI.CONFIG.RANK_PATH; },
+  /** cada mesa tem seu ranking: uaiball/scores/<idDaMesa> */
+  base(table) { return UAI.CONFIG.FIREBASE_DB_URL.replace(/\/+$/, '') + '/' + UAI.CONFIG.RANK_PATH + '/' + (table || 'uaiball'); },
   clean(name) {
     return String(name || '').replace(/[<>"'`\\]/g, '').trim().toUpperCase().slice(0, 12) || 'ANÔNIMO';
   },
   valid(e) { return e && typeof e.name === 'string' && typeof e.score === 'number' && isFinite(e.score); },
   sort(list, n) { return list.filter(this.valid).sort((a, b) => b.score - a.score).slice(0, n); },
-  localList() { return this.sort(UAI.Store.get('localrank', []), 10); },
-  saveLocal(entry) {
-    const list = this.localList(); list.push(entry);
-    UAI.Store.set('localrank', this.sort(list, 10));
+  localKey(table) { return 'localrank_' + (table || 'uaiball'); },
+  localList(table) { return this.sort(UAI.Store.get(this.localKey(table), []), 10); },
+  saveLocal(entry, table) {
+    const list = this.localList(table); list.push(entry);
+    UAI.Store.set(this.localKey(table), this.sort(list, 10));
   },
   async fetchWithTimeout(url, opts = {}, ms = 6000) {
     const ctl = new AbortController();
@@ -113,30 +115,29 @@ UAI.Ranking = {
     finally { clearTimeout(t); }
   },
   /** Retorna { list, source: 'online' | 'local', error } */
-  async top(n = 10) {
-    if (!this.online()) return { list: this.localList().slice(0, n), source: 'local' };
+  async top(n = 10, table) {
+    if (!this.online()) return { list: this.localList(table).slice(0, n), source: 'local' };
     try {
-      // consulta ordenada (precisa da regra ".indexOn": ["score"] – veja firebase-rules.json)
-      let r = await this.fetchWithTimeout(this.base() + '.json?orderBy=%22score%22&limitToLast=' + n);
-      if (!r.ok) r = await this.fetchWithTimeout(this.base() + '.json'); // sem índice: baixa tudo
+      let r = await this.fetchWithTimeout(this.base(table) + '.json?orderBy=%22score%22&limitToLast=' + n);
+      if (!r.ok) r = await this.fetchWithTimeout(this.base(table) + '.json');
       if (!r.ok) throw new Error('HTTP ' + r.status);
       const data = await r.json();
       return { list: this.sort(Object.values(data || {}), n), source: 'online' };
     } catch (e) {
-      return { list: this.localList().slice(0, n), source: 'local', error: true };
+      return { list: this.localList(table).slice(0, n), source: 'local', error: true };
     }
   },
-  async qualifies(score) {
+  async qualifies(score, table) {
     if (score <= 0) return false;
-    const { list } = await this.top(10);
+    const { list } = await this.top(10, table);
     return list.length < 10 || score > list[list.length - 1].score;
   },
-  async submit(name, score, diff) {
+  async submit(name, score, diff, table) {
     const entry = { name: this.clean(name), score: Math.floor(score), diff, date: Date.now() };
-    this.saveLocal(entry);
+    this.saveLocal(entry, table);
     if (!this.online()) return { ok: true, source: 'local' };
     try {
-      const r = await this.fetchWithTimeout(this.base() + '.json', {
+      const r = await this.fetchWithTimeout(this.base(table) + '.json', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(entry)
       });
       return { ok: r.ok, source: 'online' };
@@ -144,7 +145,7 @@ UAI.Ranking = {
   }
 };
 
-/* ---------------- Geometria da mesa (padrão + edição salva) ---------------- */
+/* ---------------- Geometria da mesa (padrão + edição salva, por mesa) ---------------- */
 UAI.Layout = {
   clone(o) { return JSON.parse(JSON.stringify(o)); },
   hash(o) {
@@ -152,15 +153,18 @@ UAI.Layout = {
     for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
     return h;
   },
-  /** Usa a versão editada no editor, a não ser que o config.js tenha mudado depois */
-  load() {
-    const saved = UAI.Store.get('layout', null);
-    if (saved && saved.base === this.hash(UAI.DEFAULT_TABLE) && saved.data) return saved.data;
-    return this.clone(UAI.DEFAULT_TABLE);
+  /** Usa a versão do editor, a não ser que o arquivo da mesa tenha mudado depois */
+  load(def) {
+    const saved = UAI.Store.get('layout_' + def.id, null);
+    if (saved && saved.base === this.hash(def.layout) && saved.data) return saved.data;
+    return this.clone(def.layout);
   },
-  save(layout) { UAI.Store.set('layout', { base: this.hash(UAI.DEFAULT_TABLE), data: layout }); },
-  reset() { UAI.Store.remove('layout'); return this.clone(UAI.DEFAULT_TABLE); }
+  save(def, layout) { UAI.Store.set('layout_' + def.id, { base: this.hash(def.layout), data: layout }); },
+  reset(def) { UAI.Store.remove('layout_' + def.id); return this.clone(def.layout); }
 };
+
+UAI.tableById = id => UAI.TABLES.find(t => t.id === id) || UAI.TABLES[0];
+UAI.tablesSorted = () => UAI.TABLES.slice().sort((a, b) => a.order - b.order);
 
 /* ---------------- Interface ---------------- */
 UAI.UI = {

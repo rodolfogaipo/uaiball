@@ -7,6 +7,9 @@ class RankingScene extends Phaser.Scene {
   init(data) {
     this.from = (data && data.from) || 'Menu';
     this.highlight = data && data.highlight;
+    this.list = UAI.tablesSorted();
+    const want = (data && data.table) || UAI.Store.get('lastTable', this.list[0].id);
+    this.idx = Math.max(0, this.list.findIndex(t => t.id === want));
   }
 
   create() {
@@ -23,9 +26,17 @@ class RankingScene extends Phaser.Scene {
     this.bulbs = [];
     for (let i = 0; i < 14; i++) this.bulbs.push(this.lights.add(100 + i * ((W - 200) / 13), 180, { r: 24, color: 0xffc060, base: 0.1 }));
 
-    this.add.text(W / 2, 110, 'RANKING GLOBAL', {
-      fontFamily: UI.FONT_TITLE, fontSize: '62px', color: '#ffd27a', stroke: '#2a1406', strokeThickness: 9
+    this.add.text(W / 2, 70, 'RANKING', {
+      fontFamily: UI.FONT_TITLE, fontSize: '58px', color: '#ffd27a', stroke: '#2a1406', strokeThickness: 9
     }).setOrigin(0.5).setShadow(0, 0, '#ff8a20', 20, false, true);
+    this.tableTxt = this.add.text(W / 2, 136, '', {
+      fontFamily: UI.FONT_TITLE, fontSize: '34px', color: '#ffe7b8', stroke: '#2a1406', strokeThickness: 6
+    }).setOrigin(0.5);
+    UI.button(this, 90, 136, 80, 70, '◀', () => this.move(-1), { size: 32 });
+    UI.button(this, W - 90, 136, 80, 70, '▶', () => this.move(1), { size: 32 });
+    this.input.keyboard.on('keydown-LEFT', () => this.move(-1));
+    this.input.keyboard.on('keydown-RIGHT', () => this.move(1));
+    this.rows = [];
 
     this.sourceTxt = this.add.text(W / 2, 222, '', {
       fontFamily: 'Georgia, serif', fontSize: '20px', color: '#d8b98a', fontStyle: 'italic'
@@ -33,26 +44,35 @@ class RankingScene extends Phaser.Scene {
     this.loading = this.add.text(W / 2, 560, 'Carregando...', {
       fontFamily: UI.FONT_TITLE, fontSize: '36px', color: '#ffe7b8'
     }).setOrigin(0.5);
+    this.rows.push(this.loading);
 
-    UI.button(this, W / 2, 1070, 320, 82, 'VOLTAR', () => this.scene.start(this.from === 'GameOver' ? 'Menu' : this.from), { size: 34 });
+    UI.button(this, W / 2, 1070, 320, 82, 'VOLTAR', () => this.scene.start(this.from === 'GameOver' ? 'Menu' : this.from, { table: this.list[this.idx].id }), { size: 34 });
     this.input.keyboard.on('keydown-ESC', () => this.scene.start('Menu'));
 
     this.load10();
   }
 
+  move(d) {
+    this.idx = (this.idx + d + this.list.length) % this.list.length;
+    this.highlight = null;
+    this.load10();
+  }
+
   async load10() {
-    const { list, source, error } = await UAI.Ranking.top(10);
-    if (!this.sys.isActive()) return;
-    this.loading.destroy();
+    const def = this.list[this.idx], token = (this.token = (this.token || 0) + 1);
+    this.tableTxt.setText(def.name);
+    this.rows.forEach(r => r.destroy()); this.rows = [];
+    const { list, source, error } = await UAI.Ranking.top(10, def.id);
+    if (!this.sys.isActive() || token !== this.token) return;
     this.sourceTxt.setText(source === 'online'
       ? '🌐 Ranking online'
       : (error ? '⚠ Sem conexão – mostrando ranking deste aparelho' : '📱 Ranking deste aparelho (configure o Firebase no config.js)'));
 
     const W = UAI.CONFIG.WIDTH, UI = UAI.UI;
     if (!list.length) {
-      this.add.text(W / 2, 560, 'Ninguém jogou ainda.\nSeja o primeiro, uai!', {
+      this.rows.push(this.add.text(W / 2, 560, 'Ninguém jogou esta mesa ainda.\nSeja o primeiro, uai!', {
         fontFamily: UI.FONT_TITLE, fontSize: '34px', color: '#ffe7b8', align: 'center'
-      }).setOrigin(0.5);
+      }).setOrigin(0.5));
       return;
     }
     const medal = ['#ffd700', '#d9d9d9', '#cd7f32'];
@@ -64,6 +84,7 @@ class RankingScene extends Phaser.Scene {
         marked = true;
         const hl = this.add.image(W / 2, y, 'glow').setBlendMode(Phaser.BlendModes.ADD).setTint(0xffa040).setDisplaySize(W - 160, 90);
         this.tweens.add({ targets: hl, alpha: { from: 0.2, to: 0.6 }, duration: 500, yoyo: true, repeat: -1 });
+        this.rows.push(hl);
       }
       const color = medal[i] || '#ffe7b8';
       const delay = i * 70;
@@ -77,6 +98,7 @@ class RankingScene extends Phaser.Scene {
           fontFamily: 'Georgia, serif', fontSize: '14px', color: '#b8956a'
         }).setOrigin(1, 0.5));
       }
+      this.rows.push(...row);
       row.forEach(t => { t.setAlpha(0); this.tweens.add({ targets: t, alpha: 1, x: t.x, duration: 300, delay }); });
     });
   }

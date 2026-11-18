@@ -17,7 +17,7 @@
     },
     render: { antialias: true, roundPixels: false },
     input: { activePointers: 4 },           // multitoque: duas palhetas + mola ao mesmo tempo
-    scene: [BootScene, MenuScene, GameScene, GameOverScene, RankingScene]
+    scene: [BootScene, MenuScene, TableSelectScene, ProfileScene, GameScene, GameOverScene, RankingScene]
   };
 
   window.game = new Phaser.Game(config);
