@@ -41,7 +41,12 @@
       const modal = document.getElementById('nameModal');
       if (modal && !modal.classList.contains('hidden')) { document.getElementById('nameSkip').click(); return; }
       const active = game.scene.getScenes(true).map(s => s.sys.settings.key);
-      if (active.includes('Game')) { const g = game.scene.getScene('Game'); if (!g.over && !g.editorOn) g.togglePause(); return; }
+      if (active.includes('Game')) {
+        const g = game.scene.getScene('Game');
+        if (g.over) { g.gameOver(); return; }                 // já acabou: vai para o resultado
+        if (!g.editorOn) g.togglePause();
+        return;
+      }
       if (active.includes('Menu')) {
         if (Date.now() - lastBack < 2000) App.exitApp();
         else { lastBack = Date.now(); UAI.toast('Aperte VOLTAR de novo para sair'); }

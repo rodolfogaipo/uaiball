@@ -22,6 +22,8 @@ class GameScene extends Phaser.Scene {
     this.isDaily = !!data.daily;
     this.debugOn = /[?&]debug=1/.test(location.search);
     this.editorOn = false;
+    // a cena é reaproveitada a cada partida: zera as marcas da partida anterior
+    this._ended = false; this.helpOpen = false; this.pauseUI = null; this.overAt = 0;
   }
 
   /* =========================================================
@@ -519,6 +521,7 @@ class GameScene extends Phaser.Scene {
     this.dropBanks.forEach(B => { if (B.resetAt && this.now >= B.resetAt) this.resetDropBank(B); });
     this.spinners.forEach(S => { S.rate *= Math.pow(0.1, dt / 1000); });
     this.party = Math.max(0, this.party - dt);
+    if (this.over && this.overAt && this.now - this.overAt > 7000) this.gameOver();
   }
 
   checkBalls(dt) {
@@ -618,6 +621,7 @@ class GameScene extends Phaser.Scene {
       this.after(wait + 900, () => { if (!this.over) this.newBall(false); });
     } else {
       this.over = true;
+      this.overAt = this.now;
       this.after(total > 0 ? 1700 : 200, () => { this.banner('FIM DE JOGO', '', '#ff9a6a', 2000); UAI.Sfx.gameover(); });
       this.after(wait + 1400, () => this.gameOver());
     }
@@ -626,6 +630,7 @@ class GameScene extends Phaser.Scene {
   gameOver() {
     if (this._ended) return;
     this._ended = true;
+    if (this.pauseUI) { this.pauseUI.destroy(); this.pauseUI = null; }
     this.scene.start('GameOver', {
       table: this.def.id, score: this.score, difficulty: this.diffKey, daily: this.isDaily,
       stats: this.stats, missionsDone: this.missionsDone, mastered: this.mastered

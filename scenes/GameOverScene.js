@@ -7,6 +7,7 @@ class GameOverScene extends Phaser.Scene {
   constructor() { super('GameOver'); }
 
   init(data) {
+    this.savedEntry = null;
     this.g = Object.assign({ table: 'uaiball', score: 0, difficulty: 'medio', stats: {}, missionsDone: 0 }, data || {});
   }
 
