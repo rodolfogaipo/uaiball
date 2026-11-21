@@ -55,10 +55,16 @@ jobs:
           ./gradlew assembleRelease --no-daemon --stacktrace
 
       - name: Assinar o APK
+        env:
+          KS_B64: ${{ secrets.UAIBALL_KEYSTORE_B64 }}
+          KS_PASS: ${{ secrets.UAIBALL_KEYSTORE_PASS }}
         run: |
+          # A chave e a senha ficam só nos segredos do repositório (Settings → Secrets), nunca nos arquivos.
+          echo "$KS_B64" | base64 -d > "$RUNNER_TEMP/uaiball.keystore"
           BT=$(ls -d $ANDROID_HOME/build-tools/* | sort -V | tail -1)
           $BT/zipalign -p -f 4 app/android/app/build/outputs/apk/release/app-release-unsigned.apk aligned.apk
-          $BT/apksigner sign --ks mobile/uaiball.keystore --ks-pass pass:uaiball123 --key-pass pass:uaiball123 --ks-key-alias uaiball --out UaiBall.apk aligned.apk
+          $BT/apksigner sign --ks "$RUNNER_TEMP/uaiball.keystore" --ks-pass env:KS_PASS --key-pass env:KS_PASS --ks-key-alias uaiball --out UaiBall.apk aligned.apk
+          rm -f "$RUNNER_TEMP/uaiball.keystore"
           $BT/apksigner verify --print-certs UaiBall.apk
           ls -la UaiBall.apk
 
